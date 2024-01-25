@@ -105,9 +105,20 @@ const stack = [
     'years': {
       2021: 15,
       2022: 35,
-      2023: 40
+      2023: 40,
+      2024: 15
     },
     borderColor: 'green',
+    fill: false,
+  },
+  {
+    'label': 'Laravel',
+    'years': {
+      2022: 20,
+      2023: 10,
+      2024: 15
+    },
+    borderColor: 'darkgreen',
     fill: false,
   },
   {
@@ -126,7 +137,8 @@ const stack = [
       2020: 70,
       2021: 65,
       2022: 60,
-      2023: 60
+      2023: 60,
+      2024: 50
     },
     borderColor: 'RebeccaPurple',
     fill: false,
@@ -152,7 +164,8 @@ const stack = [
       2020: 2,
       2021: 2,
       2022: 2,
-      2023: 2
+      2023: 2,
+      2024: 2
     },
     borderColor: 'Teal',
     fill: false,
@@ -174,7 +187,8 @@ const stack = [
       2020: 3,
       2021: 3,
       2022: 3,
-      2023: 3
+      2023: 15,
+      2024: 15
     },
     borderColor: 'lightblue',
     fill: false,
@@ -200,7 +214,8 @@ const stack = [
       2020: 82,
       2021: 75,
       2022: 63,
-      2023: 55
+      2023: 55,
+      2024: 70
     },
     borderColor: 'blue',
     fill: false,
@@ -227,7 +242,8 @@ const stack = [
       2020: 5,
       2021: 5,
       2022: 5,
-      2023: 5
+      2023: 5,
+      2024: 5
     },
     borderColor: 'orange',
     fill: false,
@@ -317,7 +333,8 @@ const stack = [
       2020: 6,
       2021: 6,
       2022: 6,
-      2023: 6
+      2023: 6,
+      2024: 5,
     },
     borderColor: 'Crimson',
     fill: false,
