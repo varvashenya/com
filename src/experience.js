@@ -106,7 +106,8 @@ const stack = [
       2021: 15,
       2022: 35,
       2023: 40,
-      2024: 15
+      2024: 15,
+      2025: 0
     },
     borderColor: 'green',
     fill: false,
@@ -116,7 +117,8 @@ const stack = [
     'years': {
       2022: 20,
       2023: 10,
-      2024: 15
+      2024: 15,
+      2025: 0
     },
     borderColor: 'darkgreen',
     fill: false,
@@ -138,7 +140,8 @@ const stack = [
       2021: 65,
       2022: 60,
       2023: 60,
-      2024: 50
+      2024: 50,
+      2025: 15
     },
     borderColor: 'RebeccaPurple',
     fill: false,
@@ -165,13 +168,14 @@ const stack = [
       2021: 2,
       2022: 2,
       2023: 2,
-      2024: 2
+      2024: 2,
+      2025: 0
     },
     borderColor: 'Teal',
     fill: false,
   },
   {
-    'label': 'Javascript',
+    'label': 'JavaScript/TypeScript',
     'years': {
       2009: 6,
       2010: 8,
@@ -188,7 +192,8 @@ const stack = [
       2021: 3,
       2022: 3,
       2023: 15,
-      2024: 15
+      2024: 15,
+      2025: 25
     },
     borderColor: 'lightblue',
     fill: false,
@@ -215,7 +220,8 @@ const stack = [
       2021: 75,
       2022: 63,
       2023: 55,
-      2024: 70
+      2024: 70,
+      2025: 75
     },
     borderColor: 'blue',
     fill: false,
@@ -243,7 +249,8 @@ const stack = [
       2021: 5,
       2022: 5,
       2023: 5,
-      2024: 5
+      2024: 5,
+      2025: 5
     },
     borderColor: 'orange',
     fill: false,
@@ -335,6 +342,7 @@ const stack = [
       2022: 6,
       2023: 6,
       2024: 5,
+      2025: 5
     },
     borderColor: 'Crimson',
     fill: false,
