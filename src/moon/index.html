@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lunar Lander - Launch from Moon</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #0f0;
+        }
+
+        #gameContainer {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+
+        canvas {
+            display: block;
+            border: 2px solid #0f0;
+            background: #000;
+        }
+
+
+        #instructions {
+            margin-top: 20px;
+            text-align: center;
+            max-width: 600px;
+            padding: 20px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #0f0;
+        }
+
+        #instructions h2 {
+            margin-bottom: 10px;
+        }
+
+        #instructions p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .key {
+            display: inline-block;
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid #0f0;
+            padding: 2px 8px;
+            margin: 0 2px;
+            border-radius: 3px;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #0f0;
+            padding: 30px;
+            text-align: center;
+            display: none;
+        }
+
+        #gameOver h2 {
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+
+        #gameOver button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 30px;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        #gameOver button:hover {
+            background: #0a0;
+        }
+
+        footer {
+            margin-top: 20px;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #0a0;
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid rgba(0, 255, 0, 0.2);
+            max-width: 600px;
+        }
+
+        footer a {
+            color: #0f0;
+            text-decoration: none;
+            border-bottom: 1px dotted #0f0;
+        }
+
+        footer a:hover {
+            color: #0ff;
+            border-bottom-color: #0ff;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="gameOver">
+            <h2 id="gameOverTitle">MISSION COMPLETE</h2>
+            <p id="gameOverMessage"></p>
+            <button onclick="location.reload()">RESTART</button>
+        </div>
+    </div>
+
+    <div id="instructions">
+        <h2>🌙 LUNAR LANDER - ESCAPE THE MOON</h2>
+        <p><strong>CONTROLS:</strong></p>
+        <p>Hold <span class="key">↑</span> to fire main engine (thrust in direction you're pointing)</p>
+        <p>Press <span class="key">←</span> <span class="key">→</span> WHILE THRUSTING to rotate the lander</p>
+        <p>⚠️ <strong>Important:</strong> Rotation requires engine power - you can't rotate without thrust!</p>
+
+        <p style="margin-top: 15px;"><strong>COCKPIT INSTRUMENTS (Bottom Right):</strong></p>
+        <p>📊 <strong>Fuel Gauge</strong>: Analog meter showing remaining fuel (green/yellow/red)</p>
+        <p>🚦 <strong>Warning Lights [V][H][A][OK]</strong>: Vertical speed, Horizontal speed, Angle, Overall status</p>
+        <p>💡 <strong>Status Lights</strong>: LAND (landed), FUEL (low fuel warning), THR (thrusting)</p>
+        <p>📈 <strong>Digital Displays</strong>: Altitude, Velocity, Angle, Fuel percentage, Status</p>
+
+        <p style="margin-top: 15px;"><strong>MISSION OBJECTIVES:</strong></p>
+        <p>🎯 <strong>Primary Goal:</strong> Reach altitude of 500m to escape lunar orbit!</p>
+        <p>⚠️ <strong>Safe Landing Requirements:</strong> Vertical speed < 1.5 m/s, Horizontal < 2.0 m/s, Angle < 30°</p>
+        <p>💡 <strong>Tip:</strong> All warning lights must be GREEN to land safely. Plan your fuel usage!</p>
+        <p>⛽ <strong>Warning:</strong> Fuel is limited! Use thrust carefully for both rotation and propulsion.</p>
+    </div>
+
+    <footer>
+        <p>Made with ❤️ by <a href="/">Dmitrii Varvashenia</a> and GitHub Copilot</p>
+    </footer>
+
+    <script src="moon.js"></script>
+</body>
+</html>
