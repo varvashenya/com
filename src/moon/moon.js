@@ -633,11 +633,24 @@ if (document.readyState === 'loading') {
     setupTouchControls();
 }
 
+// Detect if device has touchscreen
+function isTouchDevice() {
+    return (('ontouchstart' in window) ||
+            (navigator.maxTouchPoints > 0) ||
+            (navigator.msMaxTouchPoints > 0));
+}
+
 // Toggle touch controls for desktop testing
 const toggleButton = document.getElementById('toggleTouchControls');
 const touchControls = document.getElementById('touchControls');
 
 if (toggleButton && touchControls) {
+    // Show touch controls by default on touch devices
+    if (isTouchDevice()) {
+        touchControls.style.display = 'flex';
+        toggleButton.textContent = 'HIDE TOUCH';
+    }
+
     toggleButton.addEventListener('click', () => {
         if (touchControls.style.display === 'flex') {
             touchControls.style.display = 'none';
@@ -889,20 +902,12 @@ function update() {
             }
         }
 
+        // When landed, ONLY up button can take off (no left/right to avoid accidental takeoff on mobile)
         if (gameState.fuel > 0 && gameState.keys.up) {
             gameState.landed = false;
             playThrustSound();
 
-            // Allow rotation ONLY when thrusting
-            if (gameState.keys.left) {
-                lander.angle -= ROTATION_SPEED;
-            }
-            if (gameState.keys.right) {
-                lander.angle += ROTATION_SPEED;
-            }
-
-            // Thrust in the direction the lander is pointing
-            lander.vx += Math.sin(lander.angle) * THRUST_POWER;
+            // Thrust straight up when taking off
             lander.vy -= Math.cos(lander.angle) * THRUST_POWER;
             gameState.fuel -= FUEL_CONSUMPTION;
             createFlame(lander.x, lander.y, lander.angle);
@@ -924,11 +929,14 @@ function update() {
         return;
     }
 
-    // Apply thrust if up key pressed and fuel available
-    if (gameState.fuel > 0 && gameState.keys.up) {
+    // When airborne: any thrust button (up/left/right) activates main engine
+    // This makes mobile controls easier - you can thrust in a direction with one button
+    const thrustActive = gameState.fuel > 0 && (gameState.keys.up || gameState.keys.left || gameState.keys.right);
+
+    if (thrustActive) {
         playThrustSound();
 
-        // Rotation controls (left/right rotate the ship) - ONLY when thrusting
+        // Apply rotation when left/right is pressed
         if (gameState.keys.left) {
             lander.angle -= ROTATION_SPEED;
         }
