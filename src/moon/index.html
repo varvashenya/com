@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Lunar Lander - Launch from Moon</title>
     <style>
         * {
@@ -25,14 +26,123 @@
         #gameContainer {
             position: relative;
             box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            max-width: 100vw;
         }
 
         canvas {
             display: block;
             border: 2px solid #0f0;
             background: #000;
+            max-width: 100%;
+            height: auto;
         }
 
+        @media (max-width: 850px) {
+            canvas {
+                width: 100vw;
+                height: auto;
+            }
+        }
+
+        #touchControls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: 15px;
+            z-index: 100;
+            flex-direction: row;
+            align-items: center;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            #touchControls {
+                display: flex;
+            }
+        }
+
+        @media (max-width: 600px) {
+            #touchControls {
+                bottom: 10px;
+                gap: 10px;
+            }
+        }
+
+        .touch-button {
+            width: 70px;
+            height: 70px;
+            background: rgba(0, 255, 0, 0.2);
+            border: 2px solid #0f0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #0f0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            cursor: pointer;
+            transition: all 0.1s;
+            font-weight: bold;
+        }
+
+        .touch-button:active,
+        .touch-button.active {
+            background: rgba(0, 255, 0, 0.5);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+            transform: scale(0.95);
+        }
+
+        .touch-button-large {
+            width: 90px;
+            height: 90px;
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 600px) {
+            .touch-button {
+                width: 60px;
+                height: 60px;
+                font-size: 20px;
+            }
+            .touch-button-large {
+                width: 75px;
+                height: 75px;
+                font-size: 28px;
+            }
+        }
+
+        #toggleTouchControls {
+            position: fixed;
+            bottom: 120px;
+            right: 20px;
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid #0f0;
+            color: #0f0;
+            padding: 8px 12px;
+            font-size: 11px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            border-radius: 4px;
+            z-index: 101;
+        }
+
+        #toggleTouchControls:hover {
+            background: rgba(0, 255, 0, 0.3);
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            #toggleTouchControls {
+                display: none;
+            }
+        }
 
         #instructions {
             margin-top: 20px;
@@ -126,11 +236,22 @@
         </div>
     </div>
 
+    <!-- Touch Controls for Mobile -->
+    <div id="touchControls">
+        <div class="touch-button" id="touchLeft" data-key="left">←</div>
+        <div class="touch-button touch-button-large" id="touchThrust" data-key="up">↑</div>
+        <div class="touch-button" id="touchRight" data-key="right">→</div>
+    </div>
+
+    <!-- Toggle button for desktop testing -->
+    <button id="toggleTouchControls">TOUCH CONTROLS</button>
+
     <div id="instructions">
         <h2>🌙 LUNAR LANDER - ESCAPE THE MOON</h2>
         <p><strong>CONTROLS:</strong></p>
-        <p>Hold <span class="key">↑</span> to fire main engine (thrust in direction you're pointing)</p>
+        <p><strong>Keyboard:</strong> Hold <span class="key">↑</span> to fire main engine (thrust in direction you're pointing)</p>
         <p>Press <span class="key">←</span> <span class="key">→</span> WHILE THRUSTING to rotate the lander</p>
+        <p><strong>Touch:</strong> Use on-screen buttons (↑ for thrust, ← → for rotation)</p>
         <p>⚠️ <strong>Important:</strong> Rotation requires engine power - you can't rotate without thrust!</p>
 
         <p style="margin-top: 15px;"><strong>COCKPIT INSTRUMENTS (Bottom Right):</strong></p>

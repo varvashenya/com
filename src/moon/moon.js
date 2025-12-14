@@ -549,7 +549,7 @@ function maybeSpawnSpaceSuit() {
     }
 }
 
-// Input handling
+// Input handling - Keyboard
 document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowUp') gameState.keys.up = true;
     if (e.key === 'ArrowLeft') gameState.keys.left = true;
@@ -561,6 +561,86 @@ document.addEventListener('keyup', (e) => {
     if (e.key === 'ArrowLeft') gameState.keys.left = false;
     if (e.key === 'ArrowRight') gameState.keys.right = false;
 });
+
+// Input handling - Touch Controls
+function setupTouchControls() {
+    const touchButtons = document.querySelectorAll('.touch-button');
+
+    touchButtons.forEach(button => {
+        const key = button.dataset.key;
+
+        // Handle touch start
+        button.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            gameState.keys[key] = true;
+            button.classList.add('active');
+        }, { passive: false });
+
+        // Handle touch end
+        button.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            gameState.keys[key] = false;
+            button.classList.remove('active');
+        }, { passive: false });
+
+        // Handle touch cancel (when finger moves off button)
+        button.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            gameState.keys[key] = false;
+            button.classList.remove('active');
+        }, { passive: false });
+
+        // Also support mouse events for testing on desktop
+        button.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            gameState.keys[key] = true;
+            button.classList.add('active');
+        });
+
+        button.addEventListener('mouseup', (e) => {
+            e.preventDefault();
+            gameState.keys[key] = false;
+            button.classList.remove('active');
+        });
+
+        button.addEventListener('mouseleave', (e) => {
+            gameState.keys[key] = false;
+            button.classList.remove('active');
+        });
+    });
+}
+
+// Initialize touch controls when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupTouchControls);
+} else {
+    setupTouchControls();
+}
+
+// Toggle touch controls for desktop testing
+const toggleButton = document.getElementById('toggleTouchControls');
+const touchControls = document.getElementById('touchControls');
+
+if (toggleButton && touchControls) {
+    toggleButton.addEventListener('click', () => {
+        if (touchControls.style.display === 'flex') {
+            touchControls.style.display = 'none';
+            toggleButton.textContent = 'SHOW TOUCH';
+        } else {
+            touchControls.style.display = 'flex';
+            toggleButton.textContent = 'HIDE TOUCH';
+        }
+    });
+}
+
+// Prevent default touch behavior on canvas to avoid scrolling
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+}, { passive: false });
 
 // Create flame particles for engine effects (from rotated thruster)
 function createFlame(x, y, angle) {
