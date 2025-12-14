@@ -33,9 +33,97 @@ function transparentize(color, opacity) {
   return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
 }
 
-function createLegend(datasets, toggleCallback) {
+function createLegend(datasets, toggleCallback, hoverCallback) {
   const legendContainer = document.getElementById('legend-container');
   legendContainer.innerHTML = '';
+
+  // Add control buttons with modern styling
+  const controlsDiv = document.createElement('div');
+  controlsDiv.style.display = 'flex';
+  controlsDiv.style.justifyContent = 'center';
+  controlsDiv.style.marginBottom = '15px';
+  controlsDiv.style.gap = '12px';
+  controlsDiv.style.flexWrap = 'wrap';
+
+  // Helper function to create modern button
+  const createModernButton = (text, icon, gradient, hoverGradient) => {
+    const btn = document.createElement('button');
+    btn.innerHTML = `<span style="margin-right: 6px;">${icon}</span>${text}`;
+    btn.style.padding = '10px 20px';
+    btn.style.cursor = 'pointer';
+    btn.style.border = 'none';
+    btn.style.borderRadius = '8px';
+    btn.style.background = gradient;
+    btn.style.color = 'white';
+    btn.style.fontSize = '13px';
+    btn.style.fontWeight = '600';
+    btn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+    btn.style.transition = 'all 0.3s ease';
+    btn.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    btn.style.display = 'inline-flex';
+    btn.style.alignItems = 'center';
+    btn.style.justifyContent = 'center';
+
+    btn.onmouseenter = () => {
+      btn.style.background = hoverGradient;
+      btn.style.transform = 'translateY(-2px)';
+      btn.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+    };
+
+    btn.onmouseleave = () => {
+      btn.style.background = gradient;
+      btn.style.transform = 'translateY(0)';
+      btn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+    };
+
+    btn.onmousedown = () => {
+      btn.style.transform = 'translateY(0) scale(0.98)';
+    };
+
+    btn.onmouseup = () => {
+      btn.style.transform = 'translateY(-2px) scale(1)';
+    };
+
+    return btn;
+  };
+
+  const showAllBtn = createModernButton(
+    'Show All',
+    '👁️',
+    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'linear-gradient(135deg, #764ba2 0%, #667eea 100%)'
+  );
+  showAllBtn.onclick = () => {
+    datasets.forEach(d => d.hidden = false);
+    toggleCallback();
+  };
+
+  const hideAllBtn = createModernButton(
+    'Hide All',
+    '🚫',
+    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    'linear-gradient(135deg, #f5576c 0%, #f093fb 100%)'
+  );
+  hideAllBtn.onclick = () => {
+    datasets.forEach(d => d.hidden = true);
+    toggleCallback();
+  };
+
+  const showActiveBtn = createModernButton(
+    'Active Only',
+    '⚡',
+    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)'
+  );
+  showActiveBtn.onclick = () => {
+    datasets.forEach(d => d.hidden = d.isOld);
+    toggleCallback();
+  };
+
+  controlsDiv.appendChild(showAllBtn);
+  controlsDiv.appendChild(hideAllBtn);
+  controlsDiv.appendChild(showActiveBtn);
+  legendContainer.appendChild(controlsDiv);
 
   const ul = document.createElement('ul');
   ul.style.display = 'flex';
@@ -45,42 +133,135 @@ function createLegend(datasets, toggleCallback) {
   ul.style.padding = '0';
   ul.style.listStyle = 'none';
 
-  datasets.forEach((dataset, index) => {
+  // Sort datasets by last usage year (newest first)
+  const sortedDatasets = [...datasets].sort((a, b) => {
+    // Find last year with non-zero value for each dataset
+    const getLastYear = (dataset) => {
+      let lastYear = 0;
+      dataset.data.forEach((value, index) => {
+        if (value > 0) {
+          const year = start_year + index;
+          if (year > lastYear) lastYear = year;
+        }
+      });
+      return lastYear;
+    };
+
+    const aLastYear = getLastYear(a);
+    const bLastYear = getLastYear(b);
+
+    // Sort by last year descending (newest first)
+    return bLastYear - aLastYear;
+  });
+
+  sortedDatasets.forEach((dataset) => {
     const li = document.createElement('li');
     li.style.alignItems = 'center';
     li.style.cursor = 'pointer';
     li.style.display = 'flex';
     li.style.flexDirection = 'row';
     li.style.marginLeft = '10px';
-    li.style.marginBottom = '5px';
+    li.style.marginBottom = '8px';
+    li.style.padding = '8px 12px';
+    li.style.borderRadius = '6px';
+    li.style.border = `2px solid ${dataset.hidden ? '#ddd' : dataset.borderColor}`;
+    li.style.transition = 'all 0.2s ease';
+    li.style.minWidth = '140px';
 
+    // Add hover effect to highlight the line on the chart
+    li.onmouseenter = () => {
+      dataset.highlighted = true;
+      li.style.transform = 'translateY(-2px)';
+      li.style.boxShadow = `0 4px 8px ${dataset.borderColor}40`;
+      if (hoverCallback) {
+        hoverCallback();
+      } else {
+        toggleCallback(true);
+      }
+    };
+
+    li.onmouseleave = () => {
+      dataset.highlighted = false;
+      li.style.transform = 'translateY(0)';
+      li.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+      if (hoverCallback) {
+        hoverCallback();
+      } else {
+        toggleCallback(true);
+      }
+    };
+
+    // Logo placeholder (you can add actual logo URLs later)
+    const logoSpan = document.createElement('span');
+    logoSpan.style.display = 'inline-flex';
+    logoSpan.style.alignItems = 'center';
+    logoSpan.style.justifyContent = 'center';
+    logoSpan.style.width = '24px';
+    logoSpan.style.height = '24px';
+    logoSpan.style.marginRight = '10px';
+    logoSpan.style.borderRadius = '4px';
+    logoSpan.style.background = dataset.borderColor;
+    logoSpan.style.color = 'white';
+    logoSpan.style.fontSize = '12px';
+    logoSpan.style.fontWeight = 'bold';
+    logoSpan.style.flexShrink = '0';
+    logoSpan.textContent = dataset.label.substring(0, 2).toUpperCase();
+
+    // If dataset has a logo URL, use it
+    if (dataset.logo) {
+      const img = document.createElement('img');
+      img.src = dataset.logo;
+      img.style.width = '24px';
+      img.style.height = '24px';
+      img.style.objectFit = 'contain';
+      logoSpan.innerHTML = '';
+      logoSpan.appendChild(img);
+      logoSpan.style.background = 'transparent';
+    }
+
+    // Text container
+    const textContainer = document.createElement('span');
+    textContainer.style.color = '#333';
+    textContainer.style.fontSize = '13px';
+    textContainer.style.fontWeight = '500';
+    textContainer.style.flex = '1';
+    textContainer.style.opacity = dataset.hidden ? '0.5' : (dataset.isOld ? '0.7' : '1');
+    textContainer.style.fontStyle = dataset.isOld ? 'italic' : 'normal';
+    textContainer.textContent = dataset.label;
+
+    // Toggle switch (checkbox style)
+    const toggleSwitch = document.createElement('div');
+    toggleSwitch.style.position = 'relative';
+    toggleSwitch.style.width = '40px';
+    toggleSwitch.style.height = '20px';
+    toggleSwitch.style.borderRadius = '10px';
+    toggleSwitch.style.background = dataset.hidden ? '#ccc' : dataset.borderColor;
+    toggleSwitch.style.transition = 'background 0.3s ease';
+    toggleSwitch.style.marginLeft = '10px';
+    toggleSwitch.style.flexShrink = '0';
+
+    const toggleKnob = document.createElement('div');
+    toggleKnob.style.position = 'absolute';
+    toggleKnob.style.top = '2px';
+    toggleKnob.style.left = dataset.hidden ? '2px' : '20px';
+    toggleKnob.style.width = '16px';
+    toggleKnob.style.height = '16px';
+    toggleKnob.style.borderRadius = '50%';
+    toggleKnob.style.background = 'white';
+    toggleKnob.style.transition = 'left 0.3s ease';
+    toggleKnob.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.3)';
+
+    toggleSwitch.appendChild(toggleKnob);
+
+    // Click handler
     li.onclick = () => {
       dataset.hidden = !dataset.hidden;
       toggleCallback();
     };
 
-    // Color box
-    const boxSpan = document.createElement('span');
-    boxSpan.style.background = dataset.borderColor;
-    boxSpan.style.borderColor = dataset.borderColor;
-    boxSpan.style.borderWidth = '2px';
-    boxSpan.style.borderStyle = 'solid';
-    boxSpan.style.display = 'inline-block';
-    boxSpan.style.height = '20px';
-    boxSpan.style.marginRight = '10px';
-    boxSpan.style.width = '20px';
-
-    // Text
-    const textContainer = document.createElement('p');
-    textContainer.style.color = '#333';
-    textContainer.style.margin = '0';
-    textContainer.style.padding = '0';
-    textContainer.style.fontSize = 'inherit';
-    textContainer.style.textDecoration = dataset.hidden ? 'line-through' : '';
-    textContainer.textContent = dataset.label;
-
-    li.appendChild(boxSpan);
+    li.appendChild(logoSpan);
     li.appendChild(textContainer);
+    li.appendChild(toggleSwitch);
     ul.appendChild(li);
   });
 
@@ -92,7 +273,6 @@ const currentTime = new Date();
 const start_year = 1994;
 const years_of_experience = currentTime.getFullYear() - start_year + 1;
 const years = [...Array(years_of_experience)].map((x, index) => start_year + index);
-console.log(years);
 
 const stack = [
   {
@@ -103,6 +283,7 @@ const stack = [
     },
     borderColor: 'red',
     fill: false,
+    logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg'
   },
   {
     'label': 'GoLang',
@@ -115,6 +296,7 @@ const stack = [
     },
     borderColor: 'green',
     fill: false,
+    logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg'
   },
   {
     'label': 'Laravel',
@@ -122,10 +304,33 @@ const stack = [
       2022: 20,
       2023: 10,
       2024: 15,
-      2025: 0
+      2025: 30
     },
     borderColor: 'darkgreen',
     fill: false,
+    logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/laravel/laravel-original.svg'
+  },
+  {
+    'label': 'Symfony',
+    'years': {
+      2023: 15,
+      2024: 35,
+      2025: 50
+    },
+    borderColor: 'purple',
+    fill: false,
+    logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/symfony/symfony-original.svg'
+  },
+  {
+    'label': 'API Platform',
+    'years': {
+      2023: 10,
+      2024: 23,
+      2025: 33
+    },
+    borderColor: 'indigo',
+    fill: false,
+    logo: 'https://api-platform.com/logo.svg'
   },
   {
     'label': 'Drupal',
@@ -149,6 +354,7 @@ const stack = [
     },
     borderColor: 'RebeccaPurple',
     fill: false,
+    logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/drupal/drupal-original.svg'
   },
   {
     'label': 'CSS',
@@ -177,6 +383,7 @@ const stack = [
     },
     borderColor: 'Teal',
     fill: false,
+    logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/css3/css3-original.svg'
   },
   {
     'label': 'JavaScript/TypeScript',
@@ -199,8 +406,9 @@ const stack = [
       2024: 15,
       2025: 25
     },
-    borderColor: 'lightblue',
+    borderColor: 'navy',
     fill: false,
+    logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/typescript/typescript-original.svg'
   },
   {
     'label': 'PHP',
@@ -229,6 +437,7 @@ const stack = [
     },
     borderColor: 'blue',
     fill: false,
+    logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/php/php-original.svg'
   },
   {
     'label': 'GNU/Linux',
@@ -258,6 +467,7 @@ const stack = [
     },
     borderColor: 'orange',
     fill: false,
+    logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/linux/linux-original.svg'
   },
   {
     'label': 'C/C++',
@@ -268,6 +478,7 @@ const stack = [
     },
     borderColor: 'gray',
     fill: false,
+    logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/cplusplus/cplusplus-original.svg'
   },
   {
     'label': 'Adobe: Photoshop, Illustrator, PageMaker',
@@ -315,6 +526,7 @@ const stack = [
     },
     borderColor: 'black',
     fill: false,
+    logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/perl/perl-original.svg'
   },
   {
     'label': 'HTML',
@@ -350,6 +562,7 @@ const stack = [
     },
     borderColor: 'Crimson',
     fill: false,
+    logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/html5/html5-original.svg'
   },
   {
     'label': 'Assembler 86',
@@ -384,6 +597,16 @@ const stack = [
 const data = {
   labels: years,
   datasets: [...Array(stack.length)].map((x, index) => {
+    // Find the last year this technology was used
+    const lastUsedYear = Math.max(
+      ...Object.keys(stack[index].years)
+        .map(y => parseInt(y))
+        .filter(y => stack[index].years[y] > 0)
+    );
+
+    // Check if not used in last 10 years (before 2016)
+    const isOld = lastUsedYear < 2016;
+
     return {
       label: stack[index].label,
       data: [...Array(years_of_experience)].map((xx, iindex) => {
@@ -396,7 +619,9 @@ const data = {
       }),
       borderColor: stack[index].borderColor,
       backgroundColor: transparentize(stack[index].borderColor),
-      fill: stack[index].fill
+      fill: stack[index].fill,
+      isOld: isOld,
+      logo: stack[index].logo // Pass through logo URL if it exists
     };
   })
 };
@@ -408,25 +633,230 @@ class LineChart {
     this.ctx = canvas.getContext('2d');
     this.data = data;
     this.datasets = datasets;
-    this.padding = { top: 40, right: 40, bottom: 60, left: 60 };
+    this.padding = { top: 40, right: 40, bottom: 200, left: 60 }; // Initial value, will be adjusted in resize()
+    this.hoveredPoint = null;
+    this.hoveredTimeline = null;
+    this.tooltip = this.createTooltip();
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
+
+    // Add mouse move event for tooltips and timeline hover
+    this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+    this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
+
     this.draw();
+  }
+
+  createTooltip() {
+    let tooltip = document.getElementById('chart-tooltip');
+    if (!tooltip) {
+      tooltip = document.createElement('div');
+      tooltip.id = 'chart-tooltip';
+      tooltip.style.position = 'absolute';
+      tooltip.style.display = 'none';
+      tooltip.style.background = 'rgba(0, 0, 0, 0.85)';
+      tooltip.style.color = 'white';
+      tooltip.style.padding = '8px 12px';
+      tooltip.style.borderRadius = '6px';
+      tooltip.style.fontSize = '13px';
+      tooltip.style.pointerEvents = 'none';
+      tooltip.style.zIndex = '1000';
+      tooltip.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.3)';
+      tooltip.style.whiteSpace = 'nowrap';
+      document.body.appendChild(tooltip);
+    }
+    return tooltip;
+  }
+
+  handleMouseMove(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    let foundPoint = null;
+    let minDistance = 15; // Threshold for hover detection
+    let foundTimeline = null;
+
+    // Check if hovering over timeline area
+    const timelineTop = this.padding.top + this.chartHeight + 50;
+    const rowHeight = 18;
+
+    // Build the same visibleDatasets structure used in drawTimelineLabels
+    const visibleDatasets = this.datasets
+      .filter(dataset => !dataset.hidden)
+      .map(dataset => {
+        // Find first and last non-zero value years
+        let firstYear = null;
+        let lastYear = null;
+
+        dataset.data.forEach((value, index) => {
+          if (value > 0) {
+            if (firstYear === null) firstYear = index;
+            lastYear = index;
+          }
+        });
+
+        if (firstYear === null) return null;
+
+        // Include the first year with 0 after the last non-zero value
+        let endYear = lastYear;
+        for (let i = lastYear + 1; i < dataset.data.length; i++) {
+          if (dataset.data[i] === 0) {
+            endYear = i;
+            break;
+          }
+        }
+
+        const firstX = this.padding.left + (this.chartWidth / (this.data.length - 1)) * firstYear;
+        const lastX = this.padding.left + (this.chartWidth / (this.data.length - 1)) * endYear;
+
+        return {
+          dataset,
+          firstYear,
+          lastYear: endYear,
+          firstX,
+          lastX
+        };
+      })
+      .filter(item => item !== null)
+      .sort((a, b) => a.firstYear - b.firstYear); // Sort by first year
+
+    // Check timeline bars for hover
+    visibleDatasets.forEach((item, index) => {
+      const timelineY = timelineTop + index * rowHeight;
+
+      // Check if mouse is within timeline bar area (vertical)
+      if (Math.abs(y - timelineY) < 6) {
+        // Check if mouse X is within the timeline bar (horizontal)
+        if (x >= item.firstX && x <= item.lastX) {
+          foundTimeline = item.dataset;
+        }
+      }
+    });
+
+    // Check all visible datasets for nearby points (existing logic)
+    this.datasets.forEach(dataset => {
+      if (!dataset.hidden) {
+        dataset.data.forEach((value, index) => {
+          if (value > 0) {
+            const px = this.padding.left + (this.chartWidth / (this.data.length - 1)) * index;
+            const maxValue = Math.max(...this.datasets.flatMap(d => d.hidden ? [] : d.data));
+            const scaledMax = Math.ceil(maxValue / 10) * 10 || 100;
+            const py = this.padding.top + this.chartHeight - (value / scaledMax * this.chartHeight);
+
+            const distance = Math.sqrt((x - px) ** 2 + (y - py) ** 2);
+            if (distance < minDistance) {
+              minDistance = distance;
+              foundPoint = {
+                dataset,
+                value,
+                year: this.data[index],
+                x: px,
+                y: py,
+                screenX: e.clientX,
+                screenY: e.clientY
+              };
+            }
+          }
+        });
+      }
+    });
+
+    // Handle timeline hover
+    if (foundTimeline !== this.hoveredTimeline) {
+      // Clear previous timeline highlight
+      if (this.hoveredTimeline) {
+        this.hoveredTimeline.highlighted = false;
+      }
+
+      this.hoveredTimeline = foundTimeline;
+
+      if (foundTimeline) {
+        foundTimeline.highlighted = true;
+        this.canvas.style.cursor = 'pointer';
+      } else if (!foundPoint) {
+        this.canvas.style.cursor = 'default';
+      }
+
+      this.draw();
+    }
+
+    // Handle point hover (existing logic)
+    if (foundPoint && foundPoint !== this.hoveredPoint) {
+      this.hoveredPoint = foundPoint;
+      this.showTooltip(foundPoint);
+      this.canvas.style.cursor = 'pointer';
+      this.draw();
+    } else if (!foundPoint && this.hoveredPoint) {
+      this.hoveredPoint = null;
+      this.hideTooltip();
+      if (!foundTimeline) {
+        this.canvas.style.cursor = 'default';
+      }
+      this.draw();
+    } else if (foundPoint) {
+      // Update tooltip position
+      this.tooltip.style.left = foundPoint.screenX + 15 + 'px';
+      this.tooltip.style.top = foundPoint.screenY - 10 + 'px';
+    }
+  }
+
+  handleMouseLeave() {
+    if (this.hoveredPoint) {
+      this.hoveredPoint = null;
+      this.hideTooltip();
+      this.canvas.style.cursor = 'default';
+      this.draw();
+    }
+
+    if (this.hoveredTimeline) {
+      this.hoveredTimeline.highlighted = false;
+      this.hoveredTimeline = null;
+      this.canvas.style.cursor = 'default';
+      this.draw();
+    }
+  }
+
+  showTooltip(point) {
+    this.tooltip.innerHTML = `
+      <strong>${point.dataset.label}</strong><br>
+      Year: ${point.year}<br>
+      Value: ${point.value}
+    `;
+    this.tooltip.style.display = 'block';
+    this.tooltip.style.left = point.screenX + 15 + 'px';
+    this.tooltip.style.top = point.screenY - 10 + 'px';
+  }
+
+  hideTooltip() {
+    this.tooltip.style.display = 'none';
   }
 
   resize() {
     const container = this.canvas.parentElement;
     const dpr = window.devicePixelRatio || 1;
 
+    // Count visible datasets to calculate needed timeline height
+    const visibleCount = this.datasets.filter(d => !d.hidden).length;
+    const rowHeight = 18;
+    const timelineHeight = visibleCount * rowHeight + 70; // 70px for spacing and labels
+
+    // Calculate minimum height needed
+    const chartAreaHeight = Math.max(400, container.clientWidth * 0.5);
+    const totalHeight = chartAreaHeight + timelineHeight;
+
     this.canvas.width = container.clientWidth * dpr;
-    this.canvas.height = Math.max(400, container.clientWidth * 0.5) * dpr;
+    this.canvas.height = totalHeight * dpr;
     this.canvas.style.width = container.clientWidth + 'px';
-    this.canvas.style.height = Math.max(400, container.clientWidth * 0.5) + 'px';
+    this.canvas.style.height = totalHeight + 'px';
 
     this.ctx.scale(dpr, dpr);
     this.width = container.clientWidth;
-    this.height = Math.max(400, container.clientWidth * 0.5);
+    this.height = totalHeight;
+
+    // Adjust bottom padding based on timeline needs
+    this.padding.bottom = timelineHeight;
 
     this.chartWidth = this.width - this.padding.left - this.padding.right;
     this.chartHeight = this.height - this.padding.top - this.padding.bottom;
@@ -456,32 +886,194 @@ class LineChart {
     this.drawAxes();
     this.drawLabels(maxValue);
 
-    // Draw lines
+    // Check if any dataset is highlighted
+    const hasHighlighted = this.datasets.some(d => d.highlighted && !d.hidden);
+
+    // Draw lines (non-highlighted first, then highlighted)
     this.datasets.forEach(dataset => {
-      if (!dataset.hidden) {
-        this.drawLine(dataset, maxValue);
+      if (!dataset.hidden && !dataset.highlighted) {
+        this.drawLine(dataset, maxValue, hasHighlighted ? 0.2 : 1);
       }
+    });
+
+    // Draw highlighted lines on top
+    this.datasets.forEach(dataset => {
+      if (!dataset.hidden && dataset.highlighted) {
+        this.drawLine(dataset, maxValue, 1);
+      }
+    });
+
+    // Draw timeline labels below the chart
+    this.drawTimelineLabels(maxValue);
+  }
+
+  drawTimelineLabels(maxValue) {
+    // Get all visible datasets with their first and last usage years
+    const visibleDatasets = this.datasets
+      .filter(dataset => !dataset.hidden)
+      .map(dataset => {
+        // Find first and last non-zero value years
+        let firstYear = null;
+        let lastYear = null;
+
+        dataset.data.forEach((value, index) => {
+          if (value > 0) {
+            if (firstYear === null) firstYear = index;
+            lastYear = index;
+          }
+        });
+
+        if (firstYear === null) return null;
+
+        // Include the first year with 0 after the last non-zero value
+        let endYear = lastYear;
+        for (let i = lastYear + 1; i < dataset.data.length; i++) {
+          if (dataset.data[i] === 0) {
+            endYear = i;
+            break;
+          }
+        }
+
+        const firstX = this.padding.left + (this.chartWidth / (this.data.length - 1)) * firstYear;
+        const lastX = this.padding.left + (this.chartWidth / (this.data.length - 1)) * endYear;
+
+        return {
+          dataset,
+          firstYear,
+          lastYear: endYear,
+          firstX,
+          lastX,
+          yearLabel: `${this.data[firstYear]}-${this.data[endYear]}`
+        };
+      })
+      .filter(item => item !== null)
+      .sort((a, b) => a.firstYear - b.firstYear); // Sort by first year
+
+    // Draw timeline area - each tech on its own line
+    const timelineTop = this.padding.top + this.chartHeight + 50;
+    const rowHeight = 18;
+
+    // Draw each technology timeline on its own row
+    this.ctx.font = 'bold 10px sans-serif';
+    this.ctx.textBaseline = 'middle';
+
+    visibleDatasets.forEach((item, index) => {
+      const y = timelineTop + index * rowHeight;
+      const labelWidth = item.lastX - item.firstX;
+      const isHighlighted = item.dataset.highlighted;
+
+      // Enhanced visual for highlighted timeline
+      if (isHighlighted) {
+        // Draw glow effect behind the bar
+        this.ctx.shadowColor = item.dataset.borderColor;
+        this.ctx.shadowBlur = 10;
+        this.ctx.shadowOffsetX = 0;
+        this.ctx.shadowOffsetY = 0;
+      }
+
+      // Draw timeline bar with enhanced styling when highlighted
+      this.ctx.fillStyle = isHighlighted
+        ? item.dataset.borderColor
+        : transparentize(item.dataset.borderColor, 0.7);
+      this.ctx.fillRect(item.firstX, y - 6, labelWidth, 12);
+
+      // Reset shadow
+      this.ctx.shadowColor = 'transparent';
+      this.ctx.shadowBlur = 0;
+
+      // Draw border with thicker line when highlighted
+      this.ctx.strokeStyle = item.dataset.borderColor;
+      this.ctx.lineWidth = isHighlighted ? 2.5 : 1.5;
+      this.ctx.strokeRect(item.firstX, y - 6, labelWidth, 12);
+
+      // Draw label text
+      const labelText = item.dataset.label;
+      const textWidth = this.ctx.measureText(labelText).width;
+
+      this.ctx.fillStyle = isHighlighted ? 'white' : item.dataset.borderColor;
+      this.ctx.font = isHighlighted ? 'bold 11px sans-serif' : 'bold 10px sans-serif';
+
+      // Position text based on available space
+      if (textWidth + 10 < labelWidth) {
+        // Text fits inside the bar
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(labelText, (item.firstX + item.lastX) / 2, y);
+      } else if (labelWidth > 30) {
+        // Bar is wide enough, show abbreviated text
+        this.ctx.textAlign = 'center';
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.rect(item.firstX, y - 6, labelWidth, 12);
+        this.ctx.clip();
+        this.ctx.fillText(labelText, (item.firstX + item.lastX) / 2, y);
+        this.ctx.restore();
+      } else {
+        // Bar too narrow, show text to the right
+        this.ctx.textAlign = 'left';
+        this.ctx.fillStyle = item.dataset.borderColor;
+        this.ctx.fillText(labelText, item.lastX + 5, y);
+      }
+
+      // Draw start and end markers with enhanced styling when highlighted
+      const markerSize = isHighlighted ? 4 : 3;
+      this.ctx.fillStyle = item.dataset.borderColor;
+      this.ctx.beginPath();
+      this.ctx.arc(item.firstX, y, markerSize, 0, Math.PI * 2);
+      this.ctx.fill();
+
+      this.ctx.beginPath();
+      this.ctx.arc(item.lastX, y, markerSize, 0, Math.PI * 2);
+      this.ctx.fill();
     });
   }
 
   drawGrid(maxValue) {
-    this.ctx.strokeStyle = '#e0e0e0';
-    this.ctx.lineWidth = 1;
+    // Draw subtle gradient background
+    const bgGradient = this.ctx.createLinearGradient(
+      0,
+      this.padding.top,
+      0,
+      this.padding.top + this.chartHeight
+    );
+    bgGradient.addColorStop(0, '#fafafa');
+    bgGradient.addColorStop(1, '#f5f5f5');
+    this.ctx.fillStyle = bgGradient;
+    this.ctx.fillRect(this.padding.left, this.padding.top, this.chartWidth, this.chartHeight);
 
-    // Horizontal grid lines
+    // Draw horizontal grid lines with modern styling
     const steps = 10;
     for (let i = 0; i <= steps; i++) {
       const y = this.padding.top + (this.chartHeight / steps) * i;
+
+      // Different styles for major vs minor lines
+      if (i === 0 || i === steps) {
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+        this.ctx.lineWidth = 1.5;
+      } else {
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.06)';
+        this.ctx.lineWidth = 1;
+      }
+
       this.ctx.beginPath();
       this.ctx.moveTo(this.padding.left, y);
       this.ctx.lineTo(this.padding.left + this.chartWidth, y);
       this.ctx.stroke();
     }
 
-    // Vertical grid lines (every 5 years)
+    // Vertical grid lines (every 5 years) with modern styling
     const yearStep = 5;
     for (let i = 0; i < this.data.length; i += yearStep) {
       const x = this.padding.left + (this.chartWidth / (this.data.length - 1)) * i;
+
+      // Stronger lines every 10 years
+      if (i % 10 === 0) {
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
+        this.ctx.lineWidth = 1.5;
+      } else {
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.06)';
+        this.ctx.lineWidth = 1;
+      }
+
       this.ctx.beginPath();
       this.ctx.moveTo(x, this.padding.top);
       this.ctx.lineTo(x, this.padding.top + this.chartHeight);
@@ -520,54 +1112,207 @@ class LineChart {
       this.ctx.fillText(Math.round(value), this.padding.left - 10, y);
     }
 
+    // Y axis label (rotated)
+    this.ctx.save();
+    this.ctx.translate(15, this.padding.top + this.chartHeight / 2);
+    this.ctx.rotate(-Math.PI / 2);
+    this.ctx.textAlign = 'center';
+    this.ctx.fillStyle = '#333';
+    this.ctx.font = 'bold 12px sans-serif';
+    this.ctx.fillText('Experience Level (%)', 0, 0);
+    this.ctx.restore();
+
     // X axis labels (every 2 years)
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'top';
+    this.ctx.fillStyle = '#666';
+    this.ctx.font = '12px sans-serif';
     const yearStep = 2;
-    for (let i = 0; i < this.data.length; i += yearStep) {
+
+    // Always show first year
+    const firstX = this.padding.left;
+    this.ctx.fillText(this.data[0], firstX, this.padding.top + this.chartHeight + 10);
+
+    // Show years in between (every 2 years)
+    for (let i = yearStep; i < this.data.length - 1; i += yearStep) {
       const x = this.padding.left + (this.chartWidth / (this.data.length - 1)) * i;
       this.ctx.fillText(this.data[i], x, this.padding.top + this.chartHeight + 10);
     }
+
+    // Always show last year
+    const lastX = this.padding.left + this.chartWidth;
+    this.ctx.fillText(this.data[this.data.length - 1], lastX, this.padding.top + this.chartHeight + 10);
+
+    // X axis label
+    this.ctx.fillStyle = '#333';
+    this.ctx.font = 'bold 12px sans-serif';
+    this.ctx.fillText('Year', this.padding.left + this.chartWidth / 2, this.padding.top + this.chartHeight + 35);
   }
 
-  drawLine(dataset, maxValue) {
+  drawLine(dataset, maxValue, opacity = 1) {
     const points = dataset.data.map((value, index) => {
       const x = this.padding.left + (this.chartWidth / (this.data.length - 1)) * index;
       const y = this.padding.top + this.chartHeight - (value / maxValue * this.chartHeight);
       return { x, y, value };
     });
 
-    // Draw line
-    this.ctx.strokeStyle = dataset.borderColor;
-    this.ctx.lineWidth = 2;
-    this.ctx.beginPath();
+    const isHighlighted = dataset.highlighted;
+    const isOld = dataset.isOld;
 
-    points.forEach((point, index) => {
-      if (index === 0) {
-        this.ctx.moveTo(point.x, point.y);
-      } else {
-        this.ctx.lineTo(point.x, point.y);
-      }
-    });
+    // Apply additional fading for old technologies
+    const finalOpacity = isOld ? opacity * 0.4 : opacity;
+    const rgb = hexToRgb(dataset.borderColor);
 
-    this.ctx.stroke();
+    // Create gradient for modern look
+    const gradient = this.ctx.createLinearGradient(
+      points[0].x,
+      points[0].y,
+      points[points.length - 1].x,
+      points[points.length - 1].y
+    );
+    gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${finalOpacity})`);
+    gradient.addColorStop(0.5, `rgba(${Math.min(rgb.r + 40, 255)}, ${Math.min(rgb.g + 40, 255)}, ${Math.min(rgb.b + 40, 255)}, ${finalOpacity})`);
+    gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${finalOpacity})`);
 
-    // Draw fill if enabled
-    if (dataset.fill) {
-      this.ctx.fillStyle = transparentize(dataset.borderColor, 0.8);
-      this.ctx.lineTo(points[points.length - 1].x, this.padding.top + this.chartHeight);
-      this.ctx.lineTo(points[0].x, this.padding.top + this.chartHeight);
-      this.ctx.closePath();
-      this.ctx.fill();
+    // Draw glow effect for modern look
+    if (isHighlighted) {
+      this.ctx.shadowColor = dataset.borderColor;
+      this.ctx.shadowBlur = 15;
+      this.ctx.shadowOffsetX = 0;
+      this.ctx.shadowOffsetY = 0;
+    } else if (!isOld) {
+      this.ctx.shadowColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`;
+      this.ctx.shadowBlur = 4;
+      this.ctx.shadowOffsetX = 0;
+      this.ctx.shadowOffsetY = 2;
     }
 
-    // Draw points
-    this.ctx.fillStyle = dataset.borderColor;
-    points.forEach(point => {
-      if (point.value > 0) {
+    // Draw smooth curved line using bezier curves
+    this.ctx.strokeStyle = gradient;
+    this.ctx.lineWidth = isHighlighted ? 5 : (isOld ? 2 : 3);
+    this.ctx.lineJoin = 'round';
+    this.ctx.lineCap = 'round';
+    this.ctx.beginPath();
+
+    // Filter out zero-value points for smoother curves
+    const activePoints = points.filter(p => p.value > 0);
+
+    if (activePoints.length > 0) {
+      this.ctx.moveTo(activePoints[0].x, activePoints[0].y);
+
+      if (activePoints.length > 2) {
+        // Use quadratic curves for smooth transitions
+        for (let i = 0; i < activePoints.length - 1; i++) {
+          const current = activePoints[i];
+          const next = activePoints[i + 1];
+
+          // Calculate control point for smooth curve
+          const cpX = (current.x + next.x) / 2;
+          const cpY = (current.y + next.y) / 2;
+
+          this.ctx.quadraticCurveTo(current.x, current.y, cpX, cpY);
+        }
+        // Complete the last segment
+        const last = activePoints[activePoints.length - 1];
+        const secondLast = activePoints[activePoints.length - 2];
+        this.ctx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+      } else if (activePoints.length === 2) {
+        this.ctx.lineTo(activePoints[1].x, activePoints[1].y);
+      }
+
+      this.ctx.stroke();
+    }
+
+    // Reset shadow
+    this.ctx.shadowColor = 'transparent';
+    this.ctx.shadowBlur = 0;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 0;
+
+    // Draw gradient fill under the line for modern depth effect
+    if (dataset.fill || !isOld) {
+      const fillGradient = this.ctx.createLinearGradient(
+        0,
+        this.padding.top,
+        0,
+        this.padding.top + this.chartHeight
+      );
+      fillGradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${finalOpacity * 0.3})`);
+      fillGradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+
+      this.ctx.fillStyle = fillGradient;
+      this.ctx.globalAlpha = finalOpacity;
+
+      if (activePoints.length > 0) {
         this.ctx.beginPath();
-        this.ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+        this.ctx.moveTo(activePoints[0].x, activePoints[0].y);
+
+        // Redraw the curve for fill
+        if (activePoints.length > 2) {
+          for (let i = 0; i < activePoints.length - 1; i++) {
+            const current = activePoints[i];
+            const next = activePoints[i + 1];
+            const cpX = (current.x + next.x) / 2;
+            const cpY = (current.y + next.y) / 2;
+            this.ctx.quadraticCurveTo(current.x, current.y, cpX, cpY);
+          }
+          const last = activePoints[activePoints.length - 1];
+          const secondLast = activePoints[activePoints.length - 2];
+          this.ctx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+        } else if (activePoints.length === 2) {
+          this.ctx.lineTo(activePoints[1].x, activePoints[1].y);
+        }
+
+        // Complete the fill
+        this.ctx.lineTo(activePoints[activePoints.length - 1].x, this.padding.top + this.chartHeight);
+        this.ctx.lineTo(activePoints[0].x, this.padding.top + this.chartHeight);
+        this.ctx.closePath();
         this.ctx.fill();
+      }
+
+      this.ctx.globalAlpha = 1;
+    }
+
+    // Draw modern data points with gradient and glow
+    activePoints.forEach(point => {
+      const isHoveredPoint = this.hoveredPoint &&
+                             this.hoveredPoint.dataset === dataset &&
+                             Math.abs(point.x - this.hoveredPoint.x) < 1 &&
+                             Math.abs(point.y - this.hoveredPoint.y) < 1;
+
+      let pointSize = isHighlighted ? 6 : (isOld ? 3 : 5);
+
+      if (isHoveredPoint) {
+        // Enhanced glow for hovered point
+        this.ctx.shadowColor = dataset.borderColor;
+        this.ctx.shadowBlur = 20;
+        pointSize = 8;
+      }
+
+      // Create radial gradient for point
+      const pointGradient = this.ctx.createRadialGradient(
+        point.x, point.y, 0,
+        point.x, point.y, pointSize
+      );
+      pointGradient.addColorStop(0, `rgba(255, 255, 255, ${finalOpacity})`);
+      pointGradient.addColorStop(0.4, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${finalOpacity})`);
+      pointGradient.addColorStop(1, `rgba(${Math.max(rgb.r - 40, 0)}, ${Math.max(rgb.g - 40, 0)}, ${Math.max(rgb.b - 40, 0)}, ${finalOpacity})`);
+
+      // Draw point with gradient
+      this.ctx.fillStyle = pointGradient;
+      this.ctx.beginPath();
+      this.ctx.arc(point.x, point.y, pointSize, 0, Math.PI * 2);
+      this.ctx.fill();
+
+      // Add subtle border to points
+      this.ctx.strokeStyle = `rgba(255, 255, 255, ${finalOpacity * 0.8})`;
+      this.ctx.lineWidth = 2;
+      this.ctx.stroke();
+
+      if (isHoveredPoint) {
+        // Reset shadow after drawing hovered point
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
       }
     });
   }
@@ -576,12 +1321,31 @@ class LineChart {
 // Initialize the chart
 (function () {
   const canvas = document.getElementById("experience");
-  const chart = new LineChart(canvas, data.labels, data.datasets);
+  let chart = null;
+  let isInitialized = false;
 
-  // Create legend with toggle callback
-  createLegend(data.datasets, () => {
-    chart.draw();
-    // Update legend styles
-    createLegend(data.datasets, () => chart.draw());
-  });
+  function updateChart(redrawOnly = false) {
+    if (!chart) {
+      chart = new LineChart(canvas, data.labels, data.datasets);
+    } else {
+      chart.draw();
+    }
+
+    // Only recreate legend on toggle clicks, not on hover
+    if (!isInitialized || !redrawOnly) {
+      createLegend(data.datasets, updateChart);
+      isInitialized = true;
+    }
+  }
+
+  function redrawChart() {
+    if (chart) {
+      chart.draw();
+    }
+  }
+
+  // Create legend with proper callbacks
+  chart = new LineChart(canvas, data.labels, data.datasets);
+  createLegend(data.datasets, updateChart, redrawChart);
+  isInitialized = true;
 })();

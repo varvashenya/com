@@ -1,14 +1,153 @@
 /* Custom Portfolio Styles */
 
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     line-height: 1.6;
+    background: #fafafa;
+}
+
+#page {
+    background: white;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
 }
 
 #page-title {
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 2.5rem;
+    text-align: center;
+}
+
+.professional-bio {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: #555;
+    max-width: 900px;
+    margin: 0 auto 3rem auto;
+    padding: 2rem 2.5rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #667eea;
+    position: relative;
+    text-align: left;
+}
+
+.professional-bio::before {
+    content: '💼 ';
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
 }
 
 /* Profiles Section */
+.profiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.profile-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    text-decoration: none;
+    border: 2px solid transparent;
+}
+
+.profile-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    border-color: currentColor;
+}
+
+.profile-icon {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.75rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.profile-icon img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+}
+
+.profile-icon svg {
+    width: 48px;
+    height: 48px;
+}
+
+.profile-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #333;
+    text-align: center;
+}
+
+/* Individual profile card colors */
+.drupal-icon { background: linear-gradient(135deg, #0678BE 0%, #0A6DAC 100%); color: white; }
+.profile-card:hover .drupal-icon { transform: scale(1.1); }
+
+.github-icon { background: linear-gradient(135deg, #333 0%, #24292e 100%); color: white; }
+.profile-card:hover .github-icon { transform: scale(1.1); }
+
+.linkedin-icon { background: linear-gradient(135deg, #0077B5 0%, #00669C 100%); color: white; }
+.profile-card:hover .linkedin-icon { transform: scale(1.1); }
+
+.pluralsight-icon { background: linear-gradient(135deg, #F15B2A 0%, #D94A1C 100%); color: white; }
+.profile-card:hover .pluralsight-icon { transform: scale(1.1); }
+
+.exercism-icon { background: linear-gradient(135deg, #009CAB 0%, #007A87 100%); color: white; }
+.profile-card:hover .exercism-icon { transform: scale(1.1); }
+
+.goodreads-icon { background: linear-gradient(135deg, #553B08 0%, #372506 100%); color: white; }
+.profile-card:hover .goodreads-icon { transform: scale(1.1); }
+
+.strava-icon { background: linear-gradient(135deg, #FC4C02 0%, #E34402 100%); color: white; }
+.profile-card:hover .strava-icon { transform: scale(1.1); }
+
+/* Location Card */
+.location-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 12px;
+    margin: 1.5rem 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.location-old {
+    font-size: 0.95rem;
+    color: #999;
+}
+
+.location-current {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Remove old styles */
 #content ul {
     list-style: none;
     padding-left: 0;
@@ -16,23 +155,41 @@ body {
 
 #content ul li {
     margin-bottom: 0.5rem;
-    padding-left: 1.5rem;
-    position: relative;
 }
 
-#content ul li:before {
-    content: "→";
-    position: absolute;
-    left: 0;
-    color: #0066cc;
+/* Override arrow for legend items specifically */
+#legend-container ul li {
+    padding-left: 0.75rem !important;
+}
+
+#legend-container ul li:before {
+    content: none !important;
+    display: none !important;
 }
 
 #content h2 {
-    margin-top: 2.5rem;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #e0e0e0;
-    font-size: 1.8rem;
+    margin-top: 3rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    font-size: 2rem;
+    color: #333;
+    position: relative;
+    padding-left: 1rem;
+}
+
+#content h2::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    border-radius: 2px;
+}
+
+#content h2:first-of-type {
+    margin-top: 0;
 }
 
 #content h3 {
@@ -49,23 +206,197 @@ body {
 }
 
 /* Certification Badges */
-.certification-badges {
+.certification-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+.certification-card {
     display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin: 1.5rem 0;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1.5rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
 }
 
-.certification-badges img {
+.certification-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.certification-card.grand-master {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.certification-card.grand-master:hover {
+    box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4);
+}
+
+.certification-card.grand-master .cert-info h3,
+.certification-card.grand-master .cert-info p {
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.certification-card.grand-master .cert-info h3 {
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+
+.certification-card.grand-master .cert-info p {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.cert-badge {
     width: 120px;
-    height: auto;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
 }
 
-.certification-badges img:hover {
-    transform: scale(1.05);
+.cert-badge img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+}
+
+.cert-info {
+    text-align: center;
+}
+
+.cert-info h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    color: #333;
+}
+
+.cert-info p {
+    font-size: 0.9rem;
+    margin: 0;
+    color: #666;
+}
+
+/* Timeline for Licenses & Certifications */
+.timeline {
+    position: relative;
+    margin: 2rem 0;
+    padding-left: 120px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 120px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+    display: flex;
+    gap: 2rem;
+}
+
+.timeline-year {
+    position: absolute;
+    left: -120px;
+    flex-shrink: 0;
+    width: 100px;
+    text-align: right;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #667eea;
+    padding-top: 0.5rem;
+}
+
+.timeline-year::after {
+    content: '';
+    position: absolute;
+    right: -28px;
+    top: 12px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border: 3px solid #667eea;
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+}
+
+.timeline-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-left: 2rem;
+}
+
+.cert-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    border-left: 4px solid transparent;
+}
+
+.cert-item:hover {
+    transform: translateX(8px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    border-left-color: #667eea;
+}
+
+.cert-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 10px;
+}
+
+.cert-details h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: #333;
+}
+
+.cert-details p {
+    font-size: 0.9rem;
+    margin: 0;
+    color: #666;
+    line-height: 1.6;
+}
+
+.cert-details a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.cert-details a:hover {
+    text-decoration: underline;
 }
 
 /* Links */
@@ -81,14 +412,109 @@ body {
 }
 
 /* Technology Stack Section */
+#legend-container {
+    margin: 1.5rem 0;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
 #legend-container ul {
     flex-wrap: wrap;
-    justify-content: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    list-style: none !important;
+}
+
+#legend-container li {
+    background: white !important;
+    list-style: none !important;
+    /* Padding and other styles are set inline for better control */
+}
+
+/* Override site CSS that adds arrows */
+#legend-container li:before,
+#legend-container li:after {
+    content: none !important;
+    display: none !important;
 }
 
 #experience {
     max-width: 100%;
     height: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Tooltip styling */
+#chart-tooltip {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+}
+
+/* Back to Top Button */
+#back-to-top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+#back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+#back-to-top:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+}
+
+#back-to-top:active {
+    transform: translateY(-2px);
+}
+
+/* Footer */
+#site-footer {
+    margin-top: 4rem;
+    padding: 2rem 1rem;
+    text-align: center;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-top: 3px solid transparent;
+    border-image: linear-gradient(90deg, #667eea 0%, #764ba2 100%) 1;
+}
+
+#site-footer p {
+    margin: 0;
+    color: #555;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+#site-footer p::before {
+    content: '✨ ';
+}
+
+#site-footer p::after {
+    content: ' ✨';
 }
 
 /* Responsive Design */
@@ -101,12 +527,137 @@ body {
         font-size: 1rem;
     }
 
-    .certification-badges {
-        justify-content: center;
+    .profiles-grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     }
 
-    .certification-badges img {
+    .certification-section {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+
+    .certification-card {
+        padding: 1.5rem 1rem;
+    }
+
+    .cert-badge {
         width: 100px;
+        height: 100px;
+    }
+
+    .timeline {
+        padding-left: 0;
+    }
+
+    .timeline::before {
+        left: 30px;
+    }
+
+    .timeline-item {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding-left: 60px;
+    }
+
+    .timeline-year {
+        position: relative;
+        left: 0;
+        width: auto;
+        text-align: left;
+        font-size: 1.1rem;
+    }
+
+    .timeline-year::after {
+        left: -38px;
+        right: auto;
+        top: 8px;
+    }
+
+    .timeline-content {
+        padding-left: 0;
+    }
+
+    .cert-item {
+        padding: 1rem;
+    }
+
+    .cert-icon {
+        font-size: 24px;
+        width: 40px;
+        height: 40px;
+    }
+
+    .location-card {
+        padding: 1rem;
+    }
+
+    #back-to-top {
+        width: 45px;
+        height: 45px;
+        bottom: 20px;
+        right: 20px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    body {
+        background: white;
+    }
+
+    #back-to-top {
+        display: none !important;
+    }
+
+    .profile-card,
+    .certification-card,
+    .cert-item {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    #experience {
+        max-height: 400px;
+    }
+
+    .timeline-item {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    a {
+        color: #667eea;
+        text-decoration: underline;
+    }
+
+    a[href]:after {
+        content: " (" attr(href) ")";
+        font-size: 0.8em;
+        color: #666;
+    }
+}
+
+/* Accessibility - Focus Styles */
+a:focus,
+button:focus,
+.profile-card:focus {
+    outline: 3px solid #667eea;
+    outline-offset: 2px;
+}
+
+a:focus-visible,
+button:focus-visible {
+    outline: 3px solid #667eea;
+    outline-offset: 2px;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
     }
 }
 
