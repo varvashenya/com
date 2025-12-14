@@ -261,7 +261,8 @@ let gameState = {
     flames: [],
     previousOverallLightState: 'green',
     nextStationSpawn: 0, // Time until next station spawn
-    lastFuelWarningBeep: 0 // Frame counter for fuel warning beeps
+    lastFuelWarningBeep: 0, // Frame counter for fuel warning beeps
+    fuelStation: null // Fuel station on the left side
 };
 
 // Initialize stars in the sky
@@ -427,6 +428,21 @@ function getTerrainHeightAt(x) {
 
     // Fallback to base height
     return canvas.height - 50;
+}
+
+// Create fuel station on the left side of screen
+function createFuelStation() {
+    const stationX = 100; // Position on left side
+    const terrainY = getTerrainHeightAt(stationX);
+
+    gameState.fuelStation = {
+        x: stationX,
+        y: terrainY,
+        platformWidth: 80,
+        platformHeight: 8,
+        tankWidth: 30,
+        tankHeight: 45
+    };
 }
 
 // Create a meteor
@@ -859,6 +875,20 @@ function update() {
 
     // If landed, only allow takeoff with up thrust
     if (gameState.landed) {
+        // Refuel if on fuel station platform
+        if (gameState.fuelStation && gameState.fuel < 100) {
+            const station = gameState.fuelStation;
+
+            // Check if lander is positioned near the fuel station (on the ground below it)
+            // The lander lands on terrain, not on the visual platform
+            if (lander.x >= station.x - station.platformWidth / 2 &&
+                lander.x <= station.x + station.platformWidth / 2) {
+
+                // Refuel at 0.5 units per frame (30 units per second at 60fps)
+                gameState.fuel = Math.min(100, gameState.fuel + 0.5);
+            }
+        }
+
         if (gameState.fuel > 0 && gameState.keys.up) {
             gameState.landed = false;
             playThrustSound();
@@ -1652,6 +1682,136 @@ function draw() {
         ctx.fill();
     });
 
+    // Draw fuel station
+    if (gameState.fuelStation) {
+        const station = gameState.fuelStation;
+        const platformY = station.y - station.platformHeight;
+
+        ctx.fillStyle = '#555';
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 2;
+        ctx.fillRect(
+            station.x - station.platformWidth / 2,
+            platformY,
+            station.platformWidth,
+            station.platformHeight
+        );
+        ctx.strokeRect(
+            station.x - station.platformWidth / 2,
+            platformY,
+            station.platformWidth,
+            station.platformHeight
+        );
+
+        // Platform support legs
+        ctx.strokeStyle = '#777';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(station.x - station.platformWidth / 2 + 8, platformY);
+        ctx.lineTo(station.x - station.platformWidth / 2 - 5, station.y);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(station.x + station.platformWidth / 2 - 8, platformY);
+        ctx.lineTo(station.x + station.platformWidth / 2 + 5, station.y);
+        ctx.stroke();
+
+        // Fuel tank
+        const tankY = platformY - station.tankHeight / 2 - 5;
+
+        // Tank body (more rectangular, less barrel-like)
+        ctx.fillStyle = '#0066cc';
+        ctx.strokeStyle = '#0088ff';
+        ctx.lineWidth = 1.5;
+        ctx.fillRect(
+            station.x - station.tankWidth / 2,
+            tankY - station.tankHeight / 2,
+            station.tankWidth,
+            station.tankHeight
+        );
+        ctx.strokeRect(
+            station.x - station.tankWidth / 2,
+            tankY - station.tankHeight / 2,
+            station.tankWidth,
+            station.tankHeight
+        );
+
+        // Tank top (smaller rounded cap)
+        ctx.fillStyle = '#0055aa';
+        ctx.beginPath();
+        ctx.ellipse(station.x, tankY - station.tankHeight / 2, station.tankWidth / 2, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Warning stripes (thinner and fewer)
+        ctx.strokeStyle = '#ffcc00';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 2; i++) {
+            const y = tankY - station.tankHeight / 2 + (i + 1) * (station.tankHeight / 3);
+            ctx.beginPath();
+            ctx.moveTo(station.x - station.tankWidth / 2, y);
+            ctx.lineTo(station.x + station.tankWidth / 2, y);
+            ctx.stroke();
+        }
+
+        // Fuel hose/nozzle (thinner)
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(station.x, tankY + station.tankHeight / 2);
+        ctx.lineTo(station.x, platformY);
+        ctx.stroke();
+
+        // Nozzle tip (smaller)
+        ctx.fillStyle = '#cc0000';
+        ctx.beginPath();
+        ctx.arc(station.x, tankY + station.tankHeight / 2 + 6, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // "FUEL" label (smaller font)
+        ctx.fillStyle = '#ffff00';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('FUEL', station.x, tankY);
+
+        // Blinking indicator light (smaller)
+        const blink = Math.floor(Date.now() / 500) % 2;
+        ctx.fillStyle = blink ? '#00ff00' : '#004400';
+        ctx.beginPath();
+        ctx.arc(station.x, tankY - station.tankHeight / 2 - 8, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (blink) {
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = '#00ff00';
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.arc(station.x, tankY - station.tankHeight / 2 - 8, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        // Check if lander is on the platform and refueling
+        const lander = gameState.lander;
+        if (gameState.landed &&
+            lander.x >= station.x - station.platformWidth / 2 &&
+            lander.x <= station.x + station.platformWidth / 2) {
+
+            // Show refueling message with fuel percentage
+            ctx.fillStyle = '#00ff00';
+            ctx.font = 'bold 11px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`REFUELING ${Math.floor(gameState.fuel)}%`, station.x, tankY - station.tankHeight / 2 - 20);
+
+            // Animated refueling indicator (pulsing)
+            const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+            ctx.fillStyle = `rgba(0, 255, 0, ${pulse})`;
+            ctx.font = 'bold 10px monospace';
+            ctx.fillText('▼', station.x, platformY - 5);
+        }
+
+    }
+
     // Draw flames
     gameState.flames.forEach(flame => {
         const alpha = flame.life / 20;
@@ -1906,6 +2066,7 @@ function gameLoop() {
 // Initialize and start game
 initStars();
 generateTerrain();
+createFuelStation();
 generateRocks();
 generateSurfaceTexture();
 positionLanderOnTerrain();
