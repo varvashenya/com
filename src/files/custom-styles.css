@@ -1,0 +1,112 @@
+/* Custom Portfolio Styles */
+
+body {
+    line-height: 1.6;
+}
+
+#page-title {
+    margin-bottom: 2rem;
+}
+
+/* Profiles Section */
+#content ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+#content ul li {
+    margin-bottom: 0.5rem;
+    padding-left: 1.5rem;
+    position: relative;
+}
+
+#content ul li:before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: #0066cc;
+}
+
+#content h2 {
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e0e0e0;
+    font-size: 1.8rem;
+}
+
+#content h3 {
+    font-size: 1.1rem;
+    margin-top: 1rem;
+    margin-bottom: 0.3rem;
+    color: #333;
+}
+
+#content p {
+    margin-top: 0.3rem;
+    margin-bottom: 1rem;
+    color: #666;
+}
+
+/* Certification Badges */
+.certification-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.certification-badges img {
+    width: 120px;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.certification-badges img:hover {
+    transform: scale(1.05);
+}
+
+/* Links */
+#content a {
+    color: #0066cc;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+#content a:hover {
+    color: #004499;
+    text-decoration: underline;
+}
+
+/* Technology Stack Section */
+#legend-container ul {
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+#experience {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    #content h2 {
+        font-size: 1.5rem;
+    }
+
+    #content h3 {
+        font-size: 1rem;
+    }
+
+    .certification-badges {
+        justify-content: center;
+    }
+
+    .certification-badges img {
+        width: 100px;
+    }
+}
+
