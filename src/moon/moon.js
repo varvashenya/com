@@ -288,7 +288,8 @@ let gameState = {
     nextStationSpawn: 0, // Time until next station spawn
     lastFuelWarningBeep: 0, // Frame counter for fuel warning beeps
     lastOxygenWarningBeep: 0, // Frame counter for O2 warning beeps
-    fuelStation: null // Fuel station on the left side
+    fuelStation: null, // Fuel station on the left side
+    escapeTarget: null // Moving target to fly into for escape
 };
 
 // Initialize stars in the sky
@@ -431,6 +432,18 @@ function createFuelStation() {
         platformHeight: 6,
         radius: 45, // Radius of circular launchpad
         pulsePhase: 0 // For holographic animation
+    };
+}
+
+// Create escape target - a moving portal/gate the player must fly into
+function createEscapeTarget() {
+    gameState.escapeTarget = {
+        x: canvas.width / 2,
+        y: 50, // Start at top
+        vx: 0.5, // Slow horizontal movement
+        width: 80,
+        height: 60,
+        pulsePhase: 0
     };
 }
 
@@ -800,6 +813,18 @@ function update() {
         return station.x > -150 && station.x < canvas.width + 150;
     });
 
+    // Update escape target
+    if (gameState.escapeTarget) {
+        const target = gameState.escapeTarget;
+        target.x += target.vx;
+        target.pulsePhase = (target.pulsePhase + 0.03) % (Math.PI * 2);
+
+        // Bounce off screen edges
+        if (target.x - target.width / 2 < 0 || target.x + target.width / 2 > canvas.width) {
+            target.vx *= -1;
+        }
+    }
+
     // Update space suits (astronauts)
     maybeSpawnSpaceSuit();
     gameState.spaceSuits = gameState.spaceSuits.filter(suit => {
@@ -1058,11 +1083,27 @@ function update() {
     if (lander.x < -lander.width) lander.x = canvas.width;
     if (lander.x > canvas.width) lander.x = -lander.width;
 
-    // Check if escaped orbit
-    if (lander.y < -lander.height) {
+    // Check if lander reached the escape target
+    if (gameState.escapeTarget) {
+        const target = gameState.escapeTarget;
+        const landerCenterY = lander.y;
+
+        // Check if lander is inside the target portal
+        if (lander.x > target.x - target.width / 2 &&
+            lander.x < target.x + target.width / 2 &&
+            landerCenterY > target.y - target.height / 2 &&
+            landerCenterY < target.y + target.height / 2) {
+            stopThrustSound();
+            playSuccessSound();
+            endGame(true, 'MISSION SUCCESS! You entered the escape portal!');
+            return;
+        }
+    }
+
+    // Fail if lander goes too high without hitting target
+    if (lander.y < -lander.height - 100) {
         stopThrustSound();
-        playSuccessSound();
-        endGame(true, 'MISSION SUCCESS! You escaped lunar orbit!');
+        endGame(false, 'MISSION FAILED! You missed the escape portal!');
         return;
     }
 
@@ -1494,6 +1535,74 @@ function draw() {
         ctx.arc(meteor.x, meteor.y, meteor.size * 0.5, 0, Math.PI * 2);
         ctx.fill();
     });
+
+    // Draw escape target (portal/gate)
+    if (gameState.escapeTarget) {
+        const target = gameState.escapeTarget;
+
+        ctx.save();
+        ctx.translate(target.x, target.y);
+
+        // Pulsing outer glow
+        const pulse = Math.sin(target.pulsePhase) * 0.3 + 0.7;
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = `rgba(0, 255, 255, ${pulse})`;
+
+        // Outer ring
+        ctx.strokeStyle = `rgba(0, 255, 255, ${pulse})`;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, target.width / 2, target.height / 2, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Inner ring
+        ctx.strokeStyle = `rgba(0, 200, 255, ${pulse * 0.8})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, target.width / 2 - 10, target.height / 2 - 10, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+
+        // Energy particles around the portal
+        for (let i = 0; i < 8; i++) {
+            const angle = (target.pulsePhase + i * Math.PI / 4) % (Math.PI * 2);
+            const radius = target.width / 2 + 5;
+            const px = Math.cos(angle) * radius;
+            const py = Math.sin(angle) * (target.height / 2 + 5);
+
+            ctx.fillStyle = `rgba(0, 255, 255, ${pulse})`;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#0ff';
+            ctx.beginPath();
+            ctx.arc(px, py, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.shadowBlur = 0;
+
+        // "ESCAPE" text
+        ctx.fillStyle = '#0ff';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#0ff';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('ESCAPE', 0, 0);
+        ctx.shadowBlur = 0;
+
+        // Arrow indicator pointing to target
+        ctx.strokeStyle = `rgba(0, 255, 255, ${pulse * 0.6})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, target.height / 2 + 15);
+        ctx.lineTo(-5, target.height / 2 + 25);
+        ctx.moveTo(0, target.height / 2 + 15);
+        ctx.lineTo(5, target.height / 2 + 25);
+        ctx.stroke();
+
+        ctx.restore();
+    }
 
     // Draw space stations
     gameState.spaceStations.forEach(station => {
@@ -2230,6 +2339,7 @@ function gameLoop() {
 initStars();
 generateTerrain();
 createFuelStation();
+createEscapeTarget();
 positionLanderOnTerrain();
 gameState.nextStationSpawn = 300 + Math.random() * 600; // First station in 5-15 seconds
 gameLoop();
