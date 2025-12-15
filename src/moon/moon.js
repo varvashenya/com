@@ -289,7 +289,8 @@ let gameState = {
     lastFuelWarningBeep: 0, // Frame counter for fuel warning beeps
     lastOxygenWarningBeep: 0, // Frame counter for O2 warning beeps
     fuelStation: null, // Fuel station on the left side
-    escapeTarget: null // Moving target to fly into for escape
+    escapeTarget: null, // Moving target to fly into for escape
+    winAnimation: null // Win animation state when entering portal
 };
 
 // Initialize stars in the sky
@@ -569,12 +570,18 @@ function maybeSpawnSpaceSuit() {
 
 // Input handling - Keyboard
 document.addEventListener('keydown', (e) => {
+    // Disable controls during win animation
+    if (gameState.winAnimation) return;
+
     if (e.key === 'ArrowUp') gameState.keys.up = true;
     if (e.key === 'ArrowLeft') gameState.keys.left = true;
     if (e.key === 'ArrowRight') gameState.keys.right = true;
 });
 
 document.addEventListener('keyup', (e) => {
+    // Disable controls during win animation
+    if (gameState.winAnimation) return;
+
     if (e.key === 'ArrowUp') gameState.keys.up = false;
     if (e.key === 'ArrowLeft') gameState.keys.left = false;
     if (e.key === 'ArrowRight') gameState.keys.right = false;
@@ -590,6 +597,8 @@ function setupTouchControls() {
         // Handle touch start
         button.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            // Disable controls during win animation
+            if (gameState.winAnimation) return;
             gameState.keys[key] = true;
             button.classList.add('active');
         }, { passive: false });
@@ -597,6 +606,8 @@ function setupTouchControls() {
         // Handle touch end
         button.addEventListener('touchend', (e) => {
             e.preventDefault();
+            // Disable controls during win animation
+            if (gameState.winAnimation) return;
             gameState.keys[key] = false;
             button.classList.remove('active');
         }, { passive: false });
@@ -604,6 +615,8 @@ function setupTouchControls() {
         // Handle touch cancel (when finger moves off button)
         button.addEventListener('touchcancel', (e) => {
             e.preventDefault();
+            // Disable controls during win animation
+            if (gameState.winAnimation) return;
             gameState.keys[key] = false;
             button.classList.remove('active');
         }, { passive: false });
@@ -611,17 +624,23 @@ function setupTouchControls() {
         // Also support mouse events for testing on desktop
         button.addEventListener('mousedown', (e) => {
             e.preventDefault();
+            // Disable controls during win animation
+            if (gameState.winAnimation) return;
             gameState.keys[key] = true;
             button.classList.add('active');
         });
 
         button.addEventListener('mouseup', (e) => {
             e.preventDefault();
+            // Disable controls during win animation
+            if (gameState.winAnimation) return;
             gameState.keys[key] = false;
             button.classList.remove('active');
         });
 
         button.addEventListener('mouseleave', (e) => {
+            // Disable controls during win animation
+            if (gameState.winAnimation) return;
             gameState.keys[key] = false;
             button.classList.remove('active');
         });
@@ -840,7 +859,7 @@ function update() {
     });
 
     // Fuel warning beep
-    if (gameState.fuel < 20 && !gameState.landed && !gameState.crashed) {
+    if (gameState.fuel < 20 && !gameState.landed && !gameState.crashed && !gameState.winAnimation) {
         gameState.lastFuelWarningBeep++;
         // Beep every 60 frames (once per second at 60fps)
         if (gameState.lastFuelWarningBeep >= 60) {
@@ -852,7 +871,7 @@ function update() {
     }
 
     // Oxygen warning beep
-    if (gameState.oxygen < 20 && !gameState.crashed) {
+    if (gameState.oxygen < 20 && !gameState.crashed && !gameState.winAnimation) {
         gameState.lastOxygenWarningBeep++;
         // Beep every 60 frames (once per second at 60fps)
         if (gameState.lastOxygenWarningBeep >= 60) {
@@ -1093,11 +1112,76 @@ function update() {
             lander.x < target.x + target.width / 2 &&
             landerCenterY > target.y - target.height / 2 &&
             landerCenterY < target.y + target.height / 2) {
-            stopThrustSound();
-            playSuccessSound();
-            endGame(true, 'MISSION SUCCESS! You entered the escape portal!');
-            return;
+
+            // Start win animation if not already started
+            if (!gameState.winAnimation) {
+                stopThrustSound(); // Stop thrust sound
+                playSuccessSound(); // Play victory sound
+
+                // Clear all key states to stop thrust and deactivate indicators
+                gameState.keys.up = false;
+                gameState.keys.left = false;
+                gameState.keys.right = false;
+
+                // Reset warning beep counters to stop any beeping
+                gameState.lastFuelWarningBeep = 0;
+                gameState.lastOxygenWarningBeep = 0;
+
+                gameState.winAnimation = {
+                    phase: 0,
+                    targetX: target.x,
+                    targetY: target.y,
+                    particles: []
+                };
+            }
         }
+    }
+
+    // Update win animation
+    if (gameState.winAnimation) {
+        const anim = gameState.winAnimation;
+        anim.phase += 0.015; // Slow animation over ~66 frames
+
+        // Pull lander toward portal center
+        const dx = anim.targetX - lander.x;
+        const dy = anim.targetY - lander.y;
+        lander.x += dx * 0.05;
+        lander.y += dy * 0.05;
+
+        // Spin the lander
+        lander.angle += 0.05;
+
+        // Store shrink scale factor (don't modify lander dimensions directly)
+        anim.scale = 1 - anim.phase * 0.8;
+
+        // Generate sparkle particles
+        if (Math.random() > 0.5) {
+            anim.particles.push({
+                x: lander.x + (Math.random() - 0.5) * 20,
+                y: lander.y + (Math.random() - 0.5) * 20,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2,
+                life: 30,
+                size: 1 + Math.random() * 2
+            });
+        }
+
+        // Update particles
+        anim.particles = anim.particles.filter(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life--;
+            return p.life > 0;
+        });
+
+        // End animation and show game over
+        if (anim.phase >= 1) {
+            gameState.gameOver = true;
+            anim.shipDisappeared = true; // Mark ship as gone
+            endGame(true, 'MISSION SUCCESS! You entered the escape portal!');
+        }
+
+        return; // Don't process any other physics during win animation
     }
 
     // Fail if lander goes too high without hitting target
@@ -1536,73 +1620,6 @@ function draw() {
         ctx.fill();
     });
 
-    // Draw escape target (portal/gate)
-    if (gameState.escapeTarget) {
-        const target = gameState.escapeTarget;
-
-        ctx.save();
-        ctx.translate(target.x, target.y);
-
-        // Pulsing outer glow
-        const pulse = Math.sin(target.pulsePhase) * 0.3 + 0.7;
-        ctx.shadowBlur = 30;
-        ctx.shadowColor = `rgba(0, 255, 255, ${pulse})`;
-
-        // Outer ring
-        ctx.strokeStyle = `rgba(0, 255, 255, ${pulse})`;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, target.width / 2, target.height / 2, 0, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Inner ring
-        ctx.strokeStyle = `rgba(0, 200, 255, ${pulse * 0.8})`;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, target.width / 2 - 10, target.height / 2 - 10, 0, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.shadowBlur = 0;
-
-        // Energy particles around the portal
-        for (let i = 0; i < 8; i++) {
-            const angle = (target.pulsePhase + i * Math.PI / 4) % (Math.PI * 2);
-            const radius = target.width / 2 + 5;
-            const px = Math.cos(angle) * radius;
-            const py = Math.sin(angle) * (target.height / 2 + 5);
-
-            ctx.fillStyle = `rgba(0, 255, 255, ${pulse})`;
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = '#0ff';
-            ctx.beginPath();
-            ctx.arc(px, py, 3, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        ctx.shadowBlur = 0;
-
-        // "ESCAPE" text
-        ctx.fillStyle = '#0ff';
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#0ff';
-        ctx.font = 'bold 14px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('ESCAPE', 0, 0);
-        ctx.shadowBlur = 0;
-
-        // Arrow indicator pointing to target
-        ctx.strokeStyle = `rgba(0, 255, 255, ${pulse * 0.6})`;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, target.height / 2 + 15);
-        ctx.lineTo(-5, target.height / 2 + 25);
-        ctx.moveTo(0, target.height / 2 + 15);
-        ctx.lineTo(5, target.height / 2 + 25);
-        ctx.stroke();
-
-        ctx.restore();
-    }
 
     // Draw space stations
     gameState.spaceStations.forEach(station => {
@@ -1786,6 +1803,89 @@ function draw() {
 
         ctx.restore();
     });
+
+    // Draw escape target (portal/gate) - drawn last so it's on top of stations and astronauts
+    if (gameState.escapeTarget) {
+        const target = gameState.escapeTarget;
+
+        ctx.save();
+        ctx.translate(target.x, target.y);
+
+        // Pulsing outer glow
+        const pulse = Math.sin(target.pulsePhase) * 0.3 + 0.7;
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = `rgba(0, 255, 255, ${pulse})`;
+
+        // Outer ring
+        ctx.strokeStyle = `rgba(0, 255, 255, ${pulse})`;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, target.width / 2, target.height / 2, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Inner ring
+        ctx.strokeStyle = `rgba(0, 200, 255, ${pulse * 0.8})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, target.width / 2 - 10, target.height / 2 - 10, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+
+        // Energy particles around the portal
+        const particleCount = gameState.winAnimation ? 16 : 8; // More particles during win
+        for (let i = 0; i < particleCount; i++) {
+            const angle = (target.pulsePhase + i * Math.PI / (particleCount / 2)) % (Math.PI * 2);
+            const radius = target.width / 2 + 5;
+            const px = Math.cos(angle) * radius;
+            const py = Math.sin(angle) * (target.height / 2 + 5);
+
+            ctx.fillStyle = `rgba(0, 255, 255, ${pulse})`;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#0ff';
+            ctx.beginPath();
+            ctx.arc(px, py, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // During win animation, add swirling vortex effect
+        if (gameState.winAnimation) {
+            const anim = gameState.winAnimation;
+            for (let ring = 0; ring < 3; ring++) {
+                const ringRadius = (target.width / 2 - 10) * (1 - ring * 0.3);
+                const ringAlpha = (1 - anim.phase) * 0.4;
+                ctx.strokeStyle = `rgba(0, 255, 255, ${ringAlpha})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, ringRadius, ringRadius * 0.7, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        ctx.shadowBlur = 0;
+
+        // "ESCAPE" text
+        ctx.fillStyle = '#0ff';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#0ff';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('ESCAPE', 0, 0);
+        ctx.shadowBlur = 0;
+
+        // Arrow indicator pointing to target
+        ctx.strokeStyle = `rgba(0, 255, 255, ${pulse * 0.6})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, target.height / 2 + 15);
+        ctx.lineTo(-5, target.height / 2 + 25);
+        ctx.moveTo(0, target.height / 2 + 15);
+        ctx.lineTo(5, target.height / 2 + 25);
+        ctx.stroke();
+
+        ctx.restore();
+    }
 
     // === DRAW MOON SURFACE - MINIMAL CLEAN VERSION ===
 
@@ -2048,6 +2148,45 @@ function draw() {
         }
     });
 
+    // Draw win animation particles (only while ship is still visible)
+    if (gameState.winAnimation && !gameState.winAnimation.shipDisappeared) {
+        gameState.winAnimation.particles.forEach(p => {
+            const alpha = p.life / 30;
+
+            // Sparkle particle with cyan glow
+            ctx.fillStyle = `rgba(0, 255, 255, ${alpha})`;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#0ff';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // White center for sparkle effect
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Draw portal energy beam pulling the lander
+        if (gameState.escapeTarget) {
+            const target = gameState.escapeTarget;
+            const lander = gameState.lander;
+            const beamAlpha = 0.3 + Math.sin(Date.now() / 50) * 0.2;
+
+            ctx.strokeStyle = `rgba(0, 255, 255, ${beamAlpha})`;
+            ctx.lineWidth = 5;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#0ff';
+            ctx.beginPath();
+            ctx.moveTo(target.x, target.y);
+            ctx.lineTo(lander.x, lander.y);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+    }
+
     // Draw crash debris
     gameState.crashDebris.forEach(debris => {
         const alpha = debris.life / debris.maxLife;
@@ -2080,8 +2219,8 @@ function draw() {
         drawCockpitInstruments();
     }
 
-    // Don't draw lander if crashed
-    if (gameState.crashed) {
+    // Don't draw lander if crashed or if it disappeared into portal
+    if (gameState.crashed || (gameState.winAnimation && gameState.winAnimation.shipDisappeared)) {
         return;
     }
 
@@ -2117,6 +2256,11 @@ function draw() {
     ctx.save();
     ctx.translate(lander.x, lander.y);
     ctx.rotate(lander.angle); // Apply rotation
+
+    // Apply win animation scale if active
+    if (gameState.winAnimation && gameState.winAnimation.scale) {
+        ctx.scale(gameState.winAnimation.scale, gameState.winAnimation.scale);
+    }
 
     // Add glow effect when thrusting
     if (gameState.keys.up && gameState.fuel > 0) {
