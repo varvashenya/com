@@ -4,9 +4,9 @@ const ctx = canvas.getContext('2d');
 
 // Game constants
 const GRAVITY = 0.05; // Moon gravity (much lower than Earth)
-const THRUST_POWER = 0.15;
-const FUEL_CONSUMPTION = 0.3;
-const ROTATION_SPEED = 0.08; // Rotation speed in radians
+const THRUST_POWER = 0.14;
+const FUEL_CONSUMPTION = 0.2;
+const ROTATION_SPEED = 0.06; // Rotation speed in radians
 
 // Audio context for sound effects
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -200,6 +200,27 @@ function playFuelWarningBeep() {
     }
 }
 
+function playOxygenWarningBeep() {
+    // O2 warning beep - triple urgent beep
+    for (let i = 0; i < 3; i++) {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(1100 - i * 100, audioContext.currentTime);
+
+        const startTime = audioContext.currentTime + i * 0.12;
+        gainNode.gain.setValueAtTime(0.12, startTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + 0.1);
+    }
+}
+
 function playStationBeep(distance, maxDistance) {
     // Sputnik-1 style beep - volume based on distance
     // distance: how far the station is from lander
@@ -242,6 +263,9 @@ let gameState = {
         angle: 0 // Rotation angle in radians (0 = pointing up)
     },
     fuel: 100,
+    oxygen: 100, // O2 meter - depletes over time (5 minutes total)
+    oxygenMax: 100,
+    oxygenDepletionRate: 100 / (60 * 60 * 5), // Depletes over 5 minutes at 60fps
     keys: {
         up: false,
         left: false,
@@ -262,15 +286,16 @@ let gameState = {
     previousOverallLightState: 'green',
     nextStationSpawn: 0, // Time until next station spawn
     lastFuelWarningBeep: 0, // Frame counter for fuel warning beeps
+    lastOxygenWarningBeep: 0, // Frame counter for O2 warning beeps
     fuelStation: null // Fuel station on the left side
 };
 
 // Initialize stars in the sky
 function initStars() {
-    for (let i = 0; i < 150; i++) {
+    for (let i = 0; i < 200; i++) {
         gameState.stars.push({
             x: Math.random() * canvas.width,
-            y: Math.random() * (canvas.height - 150),
+            y: Math.random() * canvas.height, // Cover entire canvas height
             size: Math.random() * 2,
             vx: 0.15 + Math.random() * 0.1, // Move left to right (moon rotation effect)
             vy: (Math.random() - 0.5) * 0.02  // Very slight vertical variance
@@ -438,10 +463,10 @@ function createFuelStation() {
     gameState.fuelStation = {
         x: stationX,
         y: terrainY,
-        platformWidth: 80,
-        platformHeight: 8,
-        tankWidth: 30,
-        tankHeight: 45
+        platformWidth: 90, // Diameter of circular pad
+        platformHeight: 6,
+        radius: 45, // Radius of circular launchpad
+        pulsePhase: 0 // For holographic animation
     };
 }
 
@@ -674,17 +699,6 @@ canvas.addEventListener('touchmove', (e) => {
 // Create flame particles for engine effects (from rotated thruster)
 function createFlame(x, y, angle) {
     // Thruster is at the bottom of lander in local coords: (0, +15)
-    // After rotation by angle, transform to world coords
-    // Standard rotation: x' = x*cos - y*sin, y' = x*sin + y*cos
-    // Local thruster: x=0, y=+15 (bottom)
-    // World thruster: x' = 0 - 15*sin(angle) = -15*sin(angle)
-    //                 y' = 0 + 15*cos(angle) = +15*cos(angle)
-    // But we need thruster at BOTTOM when angle=0, which is +Y
-    // So: thrusterX = x - sin(angle) * 15
-    //     thrusterY = y + cos(angle) * 15
-    // Wait, that's wrong. Let me recalculate...
-
-    // When angle = 0 (nose up), thruster at (x, y+15) - WRONG, this doesn't rotate!
     // Proper rotation matrix for point (0, +15):
     //   x' = 0*cos(θ) - 15*sin(θ) = -15*sin(θ)
     //   y' = 0*sin(θ) + 15*cos(θ) = +15*cos(θ)
@@ -697,9 +711,7 @@ function createFlame(x, y, angle) {
     const thrusterX = x + (thrusterLocalX * Math.cos(angle) - thrusterLocalY * Math.sin(angle));
     const thrusterY = y + (thrusterLocalX * Math.sin(angle) + thrusterLocalY * Math.cos(angle));
 
-    // Flame direction in local coords is +Y (downward in local space)
-    // After rotation: direction becomes (sin(angle), cos(angle))
-    // No wait, that's still wrong. Let me use rotation matrix for direction too.
+    // Use rotation matrix for direction too.
     // Local flame direction: (0, +1) pointing down in local coords
     // After rotation: dx = 0*cos - 1*sin = -sin(angle)
     //                 dy = 0*sin + 1*cos = cos(angle)
@@ -772,9 +784,9 @@ function update() {
         // Wrap around horizontally (moon rotation effect)
         if (star.x > canvas.width) star.x = 0;
 
-        // Wrap vertically if needed (keep stars in sky area)
-        if (star.y < 0) star.y = canvas.height - 150;
-        if (star.y > canvas.height - 150) star.y = 0;
+        // Wrap vertically if needed (keep stars across entire sky)
+        if (star.y < 0) star.y = canvas.height;
+        if (star.y > canvas.height) star.y = 0;
     });
 
     // Update meteors
@@ -849,6 +861,33 @@ function update() {
         gameState.lastFuelWarningBeep = 0;
     }
 
+    // Oxygen warning beep
+    if (gameState.oxygen < 20 && !gameState.crashed) {
+        gameState.lastOxygenWarningBeep++;
+        // Beep every 60 frames (once per second at 60fps)
+        if (gameState.lastOxygenWarningBeep >= 60) {
+            playOxygenWarningBeep();
+            gameState.lastOxygenWarningBeep = 0;
+        }
+    } else {
+        gameState.lastOxygenWarningBeep = 0;
+    }
+
+    // Oxygen depletion - runs continuously
+    if (!gameState.gameOver && !gameState.crashed) {
+        gameState.oxygen -= gameState.oxygenDepletionRate;
+
+        // Check if oxygen has run out
+        if (gameState.oxygen <= 0) {
+            gameState.oxygen = 0;
+            gameState.crashed = true;
+            gameState.gameOver = true;
+            playCrashSound();
+            showGameOver(false, 'OUT OF OXYGEN! Mission failed.');
+            return;
+        }
+    }
+
     if (gameState.gameOver) {
         // Continue updating crash debris even after game over
         gameState.crashDebris = gameState.crashDebris.filter(debris => {
@@ -858,6 +897,16 @@ function update() {
             debris.life--;
             return debris.life > 0 && debris.y < canvas.height;
         });
+
+        // Continue updating flames so they disappear naturally
+        gameState.flames = gameState.flames.filter(flame => {
+            flame.x += flame.vx;
+            flame.y += flame.vy;
+            flame.vy += GRAVITY * 0.5;
+            flame.life--;
+            return flame.life > 0;
+        });
+
         return;
     }
 
@@ -1067,34 +1116,6 @@ function endGame(success, message) {
 // Draw old-style cockpit instruments - UNIFIED CONTROL PANEL
 function drawCockpitInstruments() {
     const lander = gameState.lander;
-    const panelX = canvas.width - 200;
-    const panelY = canvas.height - 280;
-    const panelWidth = 190;
-    const panelHeight = 270;
-
-    // Draw panel background
-    ctx.fillStyle = 'rgba(10, 10, 10, 0.85)';
-    ctx.strokeStyle = '#0f0';
-    ctx.lineWidth = 2;
-    ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
-    ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
-
-    // Panel title
-    ctx.fillStyle = '#0f0';
-    ctx.font = 'bold 12px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('🚀 CONTROL PANEL', panelX + panelWidth / 2, panelY + 15);
-
-    // Divider line
-    ctx.strokeStyle = '#0f0';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(panelX + 10, panelY + 22);
-    ctx.lineTo(panelX + panelWidth - 10, panelY + 22);
-    ctx.stroke();
-
-    const baseX = panelX + panelWidth / 2;
-    const baseY = panelY + 40;
 
     // Calculate current values
     const speed = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
@@ -1102,169 +1123,173 @@ function drawCockpitInstruments() {
     const horizontalSpeed = Math.abs(lander.vx);
     const terrainHeight = getTerrainHeightAt(lander.x);
     const altitude = Math.max(0, Math.round((terrainHeight - lander.y - lander.height / 2) * 0.5));
+    const maxAltitude = 500; // Escape altitude
 
     // Safe landing thresholds
     const SAFE_LANDING_SPEED = 1.5;
     const SAFE_HORIZONTAL_SPEED = 2.0;
-    
-    // Warning thresholds (yellow state)
     const WARNING_LANDING_SPEED = 1.0;
     const WARNING_HORIZONTAL_SPEED = 1.5;
-    const WARNING_ANGLE_LIMIT = Math.PI / 9; // 20 degrees
+    const WARNING_ANGLE_LIMIT = Math.PI / 9;
+    const SAFE_ANGLE_LIMIT = Math.PI / 6;
 
-    // === FUEL GAUGE (Analog meter) ===
-    const gaugeX = baseX;
-    const gaugeY = baseY + 25;
-    const gaugeRadius = 32;
-
-    // Draw gauge background
-    ctx.fillStyle = 'rgba(20, 20, 20, 0.9)';
-    ctx.beginPath();
-    ctx.arc(gaugeX, gaugeY, gaugeRadius + 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Draw gauge border
-    ctx.strokeStyle = '#0f0';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Draw gauge marks
-    ctx.strokeStyle = '#0f0';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 10; i++) {
-        const angle = Math.PI + (Math.PI * i) / 10;
-        const startRadius = gaugeRadius - 4;
-        const endRadius = gaugeRadius - (i % 2 === 0 ? 7 : 5);
-        ctx.beginPath();
-        ctx.moveTo(gaugeX + Math.cos(angle) * startRadius, gaugeY + Math.sin(angle) * startRadius);
-        ctx.lineTo(gaugeX + Math.cos(angle) * endRadius, gaugeY + Math.sin(angle) * endRadius);
-        ctx.stroke();
-    }
-
-
-    // Draw fuel needle
-    const fuelAngle = Math.PI + (Math.PI * gameState.fuel / 100);
-    ctx.strokeStyle = gameState.fuel < 20 ? '#f00' : gameState.fuel < 40 ? '#ff0' : '#0f0';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(gaugeX, gaugeY);
-    ctx.lineTo(gaugeX + Math.cos(fuelAngle) * (gaugeRadius - 12), gaugeY + Math.sin(fuelAngle) * (gaugeRadius - 12));
-    ctx.stroke();
-
-    // Draw needle center point
-    ctx.fillStyle = '#333';
-    ctx.beginPath();
-    ctx.arc(gaugeX, gaugeY, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Fuel label
-    ctx.fillStyle = gameState.fuel < 20 ? '#f00' : gameState.fuel < 40 ? '#ff0' : '#0f0';
-    ctx.font = '9px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('FUEL', gaugeX, gaugeY + 18);
-    ctx.font = 'bold 10px monospace';
-    ctx.fillText(Math.round(gameState.fuel) + '%', gaugeX, gaugeY + 29);
-
-    // === DIGITAL READOUTS ===
-    const readoutX = panelX + 15;
-    const readoutY = baseY + 85;
-    const lineHeight = 16;
-
-    ctx.font = '11px monospace';
-    ctx.textAlign = 'left';
-
-    // Altitude
-    ctx.fillStyle = '#0f0';
-    ctx.fillText('ALT:', readoutX, readoutY);
-    ctx.fillStyle = '#0ff';
-    ctx.textAlign = 'right';
-    ctx.fillText(altitude + 'm', panelX + panelWidth - 15, readoutY);
-
-    // Velocity
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#0f0';
-    ctx.fillText('VEL:', readoutX, readoutY + lineHeight);
-    ctx.fillStyle = '#0ff';
-    ctx.textAlign = 'right';
-    ctx.fillText(speed.toFixed(1) + ' m/s', panelX + panelWidth - 15, readoutY + lineHeight);
-
-    // Angle
     let normalizedAngle = lander.angle % (Math.PI * 2);
     if (normalizedAngle > Math.PI) normalizedAngle -= Math.PI * 2;
     if (normalizedAngle < -Math.PI) normalizedAngle += Math.PI * 2;
     const angleDegrees = Math.round(normalizedAngle * 180 / Math.PI);
-
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#0f0';
-    ctx.fillText('ANG:', readoutX, readoutY + lineHeight * 2);
-    const SAFE_ANGLE_LIMIT = Math.PI / 6;
     const angleFromVertical = Math.abs(normalizedAngle);
     const angleSafe = angleFromVertical < SAFE_ANGLE_LIMIT;
-    ctx.fillStyle = angleSafe ? '#0ff' : '#f00';
-    ctx.textAlign = 'right';
-    ctx.fillText(angleDegrees + '°', panelX + panelWidth - 15, readoutY + lineHeight * 2);
 
-    // Status
+    // === HORIZONTAL METERS AT TOP LEFT ===
+    const meterStartX = 15;
+    const meterStartY = 15;
+    const meterWidth = 150;
+    const meterHeight = 12;
+    const meterSpacing = 18;
+    const labelWidth = 40;
+
+    // === FUEL HORIZONTAL BAR ===
+    const fuelY = meterStartY;
+
+    // Label
+    ctx.fillStyle = '#0a0';
+    ctx.font = 'bold 10px monospace';
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#0f0';
-    ctx.fillText('STA:', readoutX, readoutY + lineHeight * 3);
-    ctx.textAlign = 'right';
+    ctx.fillText('FUEL:', meterStartX, fuelY + 9);
 
-    let status = 'FLY';
-    let statusColor = '#0ff';
-    if (gameState.landed) {
-        status = 'LAND';
-        statusColor = '#00f';
-    } else if (gameState.fuel === 0) {
-        status = 'NOFUEL';
-        statusColor = '#f00';
-    } else if (gameState.keys.up) {
-        status = 'THRUST';
-        statusColor = '#ff0';
-    } else if (gameState.keys.left || gameState.keys.right) {
-        status = 'ROT';
-        statusColor = '#ff0';
-    }
-    ctx.fillStyle = statusColor;
-    ctx.fillText(status, panelX + panelWidth - 15, readoutY + lineHeight * 3);
+    // Bar background
+    const fuelBarX = meterStartX + labelWidth;
+    ctx.fillStyle = 'rgba(40, 40, 40, 0.8)';
+    ctx.fillRect(fuelBarX, fuelY, meterWidth, meterHeight);
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(fuelBarX, fuelY, meterWidth, meterHeight);
 
-    // === WARNING LIGHTS ===
-    const lightY = readoutY + lineHeight * 4 + 10;
-    const lightStartX = panelX + 20;
-    const lightSpacing = 35;
+    // Fuel fill
+    const fuelFillWidth = (gameState.fuel / 100) * meterWidth;
+    ctx.fillStyle = gameState.fuel < 20 ? '#f00' : gameState.fuel < 40 ? '#ff0' : '#0f0';
+    ctx.fillRect(fuelBarX, fuelY, fuelFillWidth, meterHeight);
 
-    // Vertical Speed Light (green/yellow/red based on speed)
-    // Green when moving up (negative vy), warn only when moving down
+    // Percentage text
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.round(gameState.fuel) + '%', fuelBarX + meterWidth / 2, fuelY + 9);
+
+    // === ALTITUDE HORIZONTAL BAR ===
+    const altY = meterStartY + meterSpacing;
+
+    // Label
+    ctx.fillStyle = '#0a0';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('ALT:', meterStartX, altY + 9);
+
+    // Bar background
+    const altBarX = meterStartX + labelWidth;
+    ctx.fillStyle = 'rgba(40, 40, 40, 0.8)';
+    ctx.fillRect(altBarX, altY, meterWidth, meterHeight);
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(altBarX, altY, meterWidth, meterHeight);
+
+    // Altitude fill (capped at max altitude)
+    const altFillWidth = Math.min(altitude / maxAltitude, 1) * meterWidth;
+    ctx.fillStyle = altitude >= maxAltitude ? '#0ff' : '#0a0';
+    ctx.fillRect(altBarX, altY, altFillWidth, meterHeight);
+
+    // Altitude text
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(altitude + 'm', altBarX + meterWidth / 2, altY + 9);
+
+    // === O2 HORIZONTAL BAR ===
+    const o2Y = meterStartY + meterSpacing * 2;
+
+    // Label
+    ctx.fillStyle = '#0a0';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('O2:', meterStartX, o2Y + 9);
+
+    // Bar background
+    const o2BarX = meterStartX + labelWidth;
+    ctx.fillStyle = 'rgba(40, 40, 40, 0.8)';
+    ctx.fillRect(o2BarX, o2Y, meterWidth, meterHeight);
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(o2BarX, o2Y, meterWidth, meterHeight);
+
+    // O2 fill
+    const o2FillWidth = (gameState.oxygen / gameState.oxygenMax) * meterWidth;
+    ctx.fillStyle = gameState.oxygen < 20 ? '#f00' : gameState.oxygen < 40 ? '#ff0' : '#0ff';
+    ctx.fillRect(o2BarX, o2Y, o2FillWidth, meterHeight);
+
+    // Percentage text
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.round(gameState.oxygen) + '%', o2BarX + meterWidth / 2, o2Y + 9);
+
+    // === BOTTOM PANEL - Digital displays and status ===
+    const panelHeight = 30;
+    const panelY = canvas.height - panelHeight;
+    let currentX = 15;
+
+    // === DIGITAL DISPLAYS (Compact) ===
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'left';
+
+    // Velocity
+    ctx.fillStyle = '#0a0';
+    ctx.fillText('VEL:', currentX, panelY + 12);
+    ctx.fillStyle = '#0ff';
+    ctx.fillText(speed.toFixed(1) + ' m/s', currentX + 28, panelY + 12);
+
+    // Angle
+    ctx.fillStyle = '#0a0';
+    ctx.fillText('ANG:', currentX, panelY + 22);
+    ctx.fillStyle = angleSafe ? '#0ff' : '#f00';
+    ctx.fillText(angleDegrees + '°', currentX + 28, panelY + 22);
+
+    currentX += 100;
+
+    // === WARNING LIGHTS (Small circles) ===
+    const lightRadius = 5;
+    const lightY = panelY + 15;
+    const lightSpacing = 25;
+
+    // Vertical Speed
     let vSpeedState = 'green';
     if (lander.vy < 0) {
-        // Moving upward - always safe
         vSpeedState = 'green';
     } else if (verticalSpeed >= SAFE_LANDING_SPEED) {
         vSpeedState = 'red';
     } else if (verticalSpeed >= WARNING_LANDING_SPEED) {
         vSpeedState = 'yellow';
     }
-    drawWarningLight(lightStartX, lightY, vSpeedState, 'V');
+    drawCompactLight(currentX, lightY, lightRadius, vSpeedState, 'V');
 
-    // Horizontal Speed Light (green/yellow/red based on speed)
+    // Horizontal Speed
     let hSpeedState = 'green';
     if (horizontalSpeed >= SAFE_HORIZONTAL_SPEED) {
         hSpeedState = 'red';
     } else if (horizontalSpeed >= WARNING_HORIZONTAL_SPEED) {
         hSpeedState = 'yellow';
     }
-    drawWarningLight(lightStartX + lightSpacing, lightY, hSpeedState, 'H');
+    drawCompactLight(currentX + lightSpacing, lightY, lightRadius, hSpeedState, 'H');
 
-    // Landing Angle Light (green/yellow/red based on angle)
+    // Angle
     let angleState = 'green';
     if (!angleSafe) {
         angleState = 'red';
     } else if (angleFromVertical >= WARNING_ANGLE_LIMIT) {
         angleState = 'yellow';
     }
-    drawWarningLight(lightStartX + lightSpacing * 2, lightY, angleState, 'A');
+    drawCompactLight(currentX + lightSpacing * 2, lightY, lightRadius, angleState, 'A');
 
-    // Overall Light (green only if all green, red if any red, yellow otherwise)
+    // Overall
     let overallState = 'green';
     if (vSpeedState === 'red' || hSpeedState === 'red' || angleState === 'red') {
         overallState = 'red';
@@ -1272,7 +1297,7 @@ function drawCockpitInstruments() {
         overallState = 'yellow';
     }
 
-    // Play sound ONLY for overall OK light state changes
+    // Play sound for state changes
     if (overallState !== gameState.previousOverallLightState) {
         if (overallState === 'red') {
             playDangerBeep();
@@ -1284,112 +1309,83 @@ function drawCockpitInstruments() {
         gameState.previousOverallLightState = overallState;
     }
 
-    drawWarningLight(lightStartX + lightSpacing * 3, lightY, overallState, 'OK');
+    drawCompactLight(currentX + lightSpacing * 3, lightY, lightRadius, overallState, 'OK');
 
-    // === STATUS INDICATOR LIGHTS ===
-    const statusLightY = lightY + 40;
-    const statusLightStartX = panelX + 30;
-    const statusLightSpacing = 50;
+    currentX += lightSpacing * 4 + 20;
 
-    // Landed indicator
+    // === STATUS INDICATORS ===
+    const statusY = panelY + 15;
+    const statusWidth = 40;
+    const statusHeight = 12;
+    const statusSpacing = 45;
+
+    // Landed
     if (gameState.landed) {
-        drawStatusLight(statusLightStartX, statusLightY, true, 'LAND', '#00f');
-    } else {
-        drawStatusLight(statusLightStartX, statusLightY, false, 'LAND', '#333');
+        drawCompactStatus(currentX, statusY, statusWidth, statusHeight, true, 'LAND', '#00f');
     }
 
-    // Fuel warning (blinking)
+    // Low Fuel (blinking)
     if (gameState.fuel < 20) {
         const blink = Math.floor(Date.now() / 300) % 2 === 0;
-        drawStatusLight(statusLightStartX + statusLightSpacing, statusLightY, blink, 'FUEL', '#f00');
-    } else {
-        drawStatusLight(statusLightStartX + statusLightSpacing, statusLightY, false, 'FUEL', '#333');
+        drawCompactStatus(currentX + statusSpacing, statusY, statusWidth, statusHeight, blink, 'FUEL!', '#f00');
     }
 
-    // Thrust indicator
+    // Low O2 (blinking)
+    if (gameState.oxygen < 20) {
+        const blink = Math.floor(Date.now() / 300) % 2 === 0;
+        drawCompactStatus(currentX + statusSpacing * 2, statusY, statusWidth, statusHeight, blink, 'O2!', '#f00');
+    }
+
+    // Thrust
     if (gameState.keys.up) {
-        drawStatusLight(statusLightStartX + statusLightSpacing * 2, statusLightY, true, 'THR', '#ff0');
-    } else {
-        drawStatusLight(statusLightStartX + statusLightSpacing * 2, statusLightY, false, 'THR', '#333');
+        drawCompactStatus(currentX + statusSpacing * 3, statusY, statusWidth, statusHeight, true, 'THR', '#ff0');
     }
 }
 
-// Draw warning light (green = safe, yellow = warning, red = danger)
-function drawWarningLight(x, y, state, label) {
-    const radius = 12;
-
-    // Light background
-    ctx.fillStyle = 'rgba(20, 20, 20, 0.8)';
-    ctx.beginPath();
-    ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Determine color based on state
+// Draw compact warning light for horizontal panel
+function drawCompactLight(x, y, radius, state, label) {
+    // Determine color
     let color;
-    let glowIntensity;
-    if (state === 'green') {
-        color = '#0f0';
-        glowIntensity = 8;
-    } else if (state === 'yellow') {
-        color = '#ff0';
-        glowIntensity = 10;
-    } else { // red
-        color = '#f00';
-        glowIntensity = 15;
-    }
+    if (state === 'green') color = '#0f0';
+    else if (state === 'yellow') color = '#ff0';
+    else color = '#f00';
 
-    // Light color with glow
+    // Light with glow
     ctx.fillStyle = color;
-    ctx.shadowBlur = glowIntensity;
+    ctx.shadowBlur = 5;
     ctx.shadowColor = color;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Inner highlight for 3D effect
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.beginPath();
-    ctx.arc(x - 3, y - 3, radius / 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Label below
-    ctx.fillStyle = '#0f0';
-    ctx.font = '9px monospace';
+    // Label
+    ctx.fillStyle = '#0a0';
+    ctx.font = '7px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(label, x, y + radius + 12);
+    ctx.fillText(label, x, y - radius - 2);
 }
 
-// Draw status indicator light
-function drawStatusLight(x, y, active, label, color) {
-    const width = 30;
-    const height = 15;
+// Draw compact status indicator
+function drawCompactStatus(x, y, width, height, active, label, color) {
+    if (!active) return;
 
-    // Light box
-    ctx.fillStyle = active ? color : 'rgba(50, 50, 50, 0.8)';
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 2;
-
-    if (active) {
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = color;
-    }
-
+    ctx.fillStyle = color;
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = color;
     ctx.fillRect(x - width/2, y - height/2, width, height);
-    ctx.strokeRect(x - width/2, y - height/2, width, height);
     ctx.shadowBlur = 0;
 
-    // Label text
-    ctx.fillStyle = active ? '#fff' : '#333';
-    ctx.font = 'bold 9px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 8px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, x, y);
 }
 
+
 // Draw everything
 function draw() {
-    // ...existing code...
 
     // Clear canvas
     ctx.fillStyle = '#000';
@@ -1690,114 +1686,112 @@ function draw() {
         ctx.fill();
     });
 
-    // Draw fuel station
+    // Draw fuel station (Modern Sci-Fi Charging Pad with Holographic Effects)
     if (gameState.fuelStation) {
         const station = gameState.fuelStation;
-        const platformY = station.y - station.platformHeight;
 
-        ctx.fillStyle = '#555';
-        ctx.strokeStyle = '#888';
-        ctx.lineWidth = 2;
-        ctx.fillRect(
-            station.x - station.platformWidth / 2,
-            platformY,
-            station.platformWidth,
-            station.platformHeight
-        );
-        ctx.strokeRect(
-            station.x - station.platformWidth / 2,
-            platformY,
-            station.platformWidth,
-            station.platformHeight
-        );
+        // Update pulse animation
+        station.pulsePhase = (station.pulsePhase + 0.05) % (Math.PI * 2);
 
-        // Platform support legs
-        ctx.strokeStyle = '#777';
-        ctx.lineWidth = 3;
+        const padWidth = 80;
+        const padHeight = 4;
+        const padY = station.y - padHeight;
+
+        // Ground contact shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
         ctx.beginPath();
-        ctx.moveTo(station.x - station.platformWidth / 2 + 8, platformY);
-        ctx.lineTo(station.x - station.platformWidth / 2 - 5, station.y);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(station.x + station.platformWidth / 2 - 8, platformY);
-        ctx.lineTo(station.x + station.platformWidth / 2 + 5, station.y);
-        ctx.stroke();
-
-        // Fuel tank
-        const tankY = platformY - station.tankHeight / 2 - 5;
-
-        // Tank body (more rectangular, less barrel-like)
-        ctx.fillStyle = '#0066cc';
-        ctx.strokeStyle = '#0088ff';
-        ctx.lineWidth = 1.5;
-        ctx.fillRect(
-            station.x - station.tankWidth / 2,
-            tankY - station.tankHeight / 2,
-            station.tankWidth,
-            station.tankHeight
-        );
-        ctx.strokeRect(
-            station.x - station.tankWidth / 2,
-            tankY - station.tankHeight / 2,
-            station.tankWidth,
-            station.tankHeight
-        );
-
-        // Tank top (smaller rounded cap)
-        ctx.fillStyle = '#0055aa';
-        ctx.beginPath();
-        ctx.ellipse(station.x, tankY - station.tankHeight / 2, station.tankWidth / 2, 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(station.x, station.y + 1, padWidth * 0.5, 4, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.stroke();
 
-        // Warning stripes (thinner and fewer)
-        ctx.strokeStyle = '#ffcc00';
+        // Base charging pad (metallic with glow)
+        ctx.fillStyle = '#2a2a2a';
+        ctx.strokeStyle = '#0ff';
         ctx.lineWidth = 2;
-        for (let i = 0; i < 2; i++) {
-            const y = tankY - station.tankHeight / 2 + (i + 1) * (station.tankHeight / 3);
+        ctx.fillRect(station.x - padWidth / 2, padY, padWidth, padHeight);
+        ctx.strokeRect(station.x - padWidth / 2, padY, padWidth, padHeight);
+
+        // Energy core in center (pulsing)
+        const corePulse = Math.sin(station.pulsePhase) * 0.3 + 0.7;
+        ctx.fillStyle = `rgba(0, 255, 255, ${corePulse})`;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#0ff';
+        ctx.beginPath();
+        ctx.arc(station.x, padY, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Glowing circuit lines on pad surface
+        ctx.strokeStyle = `rgba(0, 255, 255, ${corePulse * 0.7})`;
+        ctx.lineWidth = 2;
+        const circuitPositions = [-25, -15, 15, 25];
+        circuitPositions.forEach(offset => {
             ctx.beginPath();
-            ctx.moveTo(station.x - station.tankWidth / 2, y);
-            ctx.lineTo(station.x + station.tankWidth / 2, y);
+            ctx.moveTo(station.x + offset, padY + 2);
+            ctx.lineTo(station.x + offset, padY - 2);
             ctx.stroke();
+        });
+
+        // Holographic energy rings rising up (3 rings at different heights)
+        for (let i = 0; i < 3; i++) {
+            const ringPhase = (station.pulsePhase + i * Math.PI * 0.7) % (Math.PI * 2);
+            const ringHeight = (Math.sin(ringPhase) * 0.5 + 0.5) * 80; // 0 to 80 pixels high
+            const ringY = padY - ringHeight;
+            const ringAlpha = (1 - ringHeight / 80) * 0.6; // Fade as they rise
+            const ringRadius = 35 + ringHeight * 0.3; // Expand as they rise
+
+            // Ring effect (ellipse for perspective)
+            ctx.strokeStyle = `rgba(0, 255, 255, ${ringAlpha})`;
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#0ff';
+            ctx.beginPath();
+            ctx.ellipse(station.x, ringY, ringRadius, 8, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
         }
 
-        // Fuel hose/nozzle (thinner)
-        ctx.strokeStyle = '#888';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(station.x, tankY + station.tankHeight / 2);
-        ctx.lineTo(station.x, platformY);
-        ctx.stroke();
+        // Energy particles flowing upward
+        const particleCount = 8;
+        for (let i = 0; i < particleCount; i++) {
+            const particlePhase = (station.pulsePhase * 2 + i * Math.PI * 2 / particleCount) % (Math.PI * 2);
+            const particleHeight = (Math.sin(particlePhase) * 0.5 + 0.5) * 70;
+            const particleX = station.x + (Math.cos(i * Math.PI * 2 / particleCount) * 20);
+            const particleY = padY - particleHeight;
+            const particleAlpha = (1 - particleHeight / 70) * 0.8;
 
-        // Nozzle tip (smaller)
-        ctx.fillStyle = '#cc0000';
-        ctx.beginPath();
-        ctx.arc(station.x, tankY + station.tankHeight / 2 + 6, 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        // "FUEL" label (smaller font)
-        ctx.fillStyle = '#ffff00';
-        ctx.font = 'bold 10px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('FUEL', station.x, tankY);
-
-        // Blinking indicator light (smaller)
-        const blink = Math.floor(Date.now() / 500) % 2;
-        ctx.fillStyle = blink ? '#00ff00' : '#004400';
-        ctx.beginPath();
-        ctx.arc(station.x, tankY - station.tankHeight / 2 - 8, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        if (blink) {
-            ctx.shadowBlur = 6;
-            ctx.shadowColor = '#00ff00';
-            ctx.fillStyle = '#00ff00';
+            ctx.fillStyle = `rgba(0, 255, 255, ${particleAlpha})`;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#0ff';
             ctx.beginPath();
-            ctx.arc(station.x, tankY - station.tankHeight / 2 - 8, 3, 0, Math.PI * 2);
+            ctx.arc(particleX, particleY, 2, 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
         }
+
+        // Corner status indicators
+        const cornerPositions = [
+            [station.x - padWidth / 2 + 5, padY],
+            [station.x + padWidth / 2 - 5, padY]
+        ];
+
+        cornerPositions.forEach(([x, y]) => {
+            ctx.fillStyle = '#0ff';
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = '#0ff';
+            ctx.beginPath();
+            ctx.arc(x, y, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        });
+
+        // "FUEL" label with glow
+        ctx.fillStyle = '#0ff';
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = '#0ff';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('⚡ ENERGY ⚡', station.x, padY - 90);
+        ctx.shadowBlur = 0;
 
         // Check if lander is on the platform and refueling
         const lander = gameState.lander;
@@ -1805,17 +1799,41 @@ function draw() {
             lander.x >= station.x - station.platformWidth / 2 &&
             lander.x <= station.x + station.platformWidth / 2) {
 
+            // Energy beam connecting to lander
+            const beamAlpha = Math.sin(Date.now() / 100) * 0.2 + 0.5;
+            ctx.strokeStyle = `rgba(0, 255, 255, ${beamAlpha})`;
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#0ff';
+            ctx.beginPath();
+            ctx.moveTo(station.x, padY);
+            ctx.lineTo(lander.x, lander.y + lander.height / 2);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
             // Show refueling message with fuel percentage
             ctx.fillStyle = '#00ff00';
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#00ff00';
             ctx.font = 'bold 11px monospace';
             ctx.textAlign = 'center';
-            ctx.fillText(`REFUELING ${Math.floor(gameState.fuel)}%`, station.x, tankY - station.tankHeight / 2 - 20);
+            ctx.fillText(`⚡ CHARGING ${Math.floor(gameState.fuel)}% ⚡`, station.x, padY - 100);
+            ctx.shadowBlur = 0;
 
-            // Animated refueling indicator (pulsing)
-            const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
-            ctx.fillStyle = `rgba(0, 255, 0, ${pulse})`;
-            ctx.font = 'bold 10px monospace';
-            ctx.fillText('▼', station.x, platformY - 5);
+            // Energy flow particles along beam
+            for (let i = 0; i < 5; i++) {
+                const flowPhase = (Date.now() / 100 + i * 0.2) % 1;
+                const flowX = station.x + (lander.x - station.x) * flowPhase;
+                const flowY = padY + (lander.y + lander.height / 2 - padY) * flowPhase;
+
+                ctx.fillStyle = `rgba(0, 255, 255, ${1 - flowPhase})`;
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = '#0ff';
+                ctx.beginPath();
+                ctx.arc(flowX, flowY, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
         }
 
     }
