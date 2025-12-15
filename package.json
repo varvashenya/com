@@ -7,9 +7,9 @@
     "build": "parcel build src/index.html src/moon/index.html"
   },
   "devDependencies": {
-    "parcel": "^2.6.2"
+    "parcel": "^2.16.3"
   },
   "dependencies": {
-    "@cubejs-client/core": "^0.31.0"
+    "@cubejs-client/core": "^1.5.14"
   }
 }
