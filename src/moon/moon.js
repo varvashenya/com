@@ -298,7 +298,9 @@ function initStars() {
             y: Math.random() * canvas.height, // Cover entire canvas height
             size: Math.random() * 2,
             vx: 0.15 + Math.random() * 0.1, // Move left to right (moon rotation effect)
-            vy: (Math.random() - 0.5) * 0.02  // Very slight vertical variance
+            vy: (Math.random() - 0.5) * 0.02,  // Very slight vertical variance
+            twinkleSpeed: 0.02 + Math.random() * 0.03, // Different twinkle rates
+            twinklePhase: Math.random() * Math.PI * 2 // Random starting phase
         });
     }
 }
@@ -780,6 +782,7 @@ function update() {
     gameState.stars.forEach(star => {
         star.x += star.vx;
         star.y += star.vy;
+        star.twinklePhase += star.twinkleSpeed; // Update twinkle animation
 
         // Wrap around horizontally (moon rotation effect)
         if (star.x > canvas.width) star.x = 0;
@@ -1392,8 +1395,10 @@ function draw() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Draw stars
-    ctx.fillStyle = '#fff';
     gameState.stars.forEach(star => {
+        // Calculate twinkling alpha (0.3 to 1.0)
+        const twinkleAlpha = 0.3 + (Math.sin(star.twinklePhase) * 0.5 + 0.5) * 0.7;
+        ctx.fillStyle = `rgba(255, 255, 255, ${twinkleAlpha})`;
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
         ctx.fill();
@@ -1601,8 +1606,12 @@ function draw() {
     });
 
     // Draw moon surface with realistic texturing
-    // Base surface fill
-    ctx.fillStyle = '#666';
+    // Base surface fill with gradient for depth
+    const surfaceGradient = ctx.createLinearGradient(0, canvas.height - 150, 0, canvas.height);
+    surfaceGradient.addColorStop(0, '#555');
+    surfaceGradient.addColorStop(0.6, '#444');
+    surfaceGradient.addColorStop(1, '#333');
+    ctx.fillStyle = surfaceGradient;
     ctx.beginPath();
     ctx.moveTo(gameState.terrain[0].x, gameState.terrain[0].y);
 
@@ -1834,17 +1843,58 @@ function draw() {
                 ctx.fill();
                 ctx.shadowBlur = 0;
             }
+
+            // Add floating particles around lander during charging
+            for (let i = 0; i < 8; i++) {
+                const angle = (Date.now() / 1000 + i * Math.PI / 4) % (Math.PI * 2);
+                const radius = 25 + Math.sin(Date.now() / 500 + i) * 5;
+                const px = lander.x + Math.cos(angle) * radius;
+                const py = lander.y + Math.sin(angle) * radius;
+                const particleAlpha = 0.5 + Math.sin(Date.now() / 300 + i) * 0.3;
+
+                ctx.fillStyle = `rgba(0, 255, 255, ${particleAlpha})`;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#0ff';
+                ctx.beginPath();
+                ctx.arc(px, py, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
         }
 
     }
 
-    // Draw flames
+    // Draw flames with enhanced gradient colors
     gameState.flames.forEach(flame => {
         const alpha = flame.life / 20;
-        ctx.fillStyle = `rgba(255, ${100 + flame.life * 7}, 0, ${alpha})`;
+        const lifeRatio = flame.life / 25; // Normalized life
+
+        // Color transition: white-hot -> yellow -> orange -> red
+        let r, g, b;
+        if (lifeRatio > 0.7) {
+            // White to yellow
+            r = 255;
+            g = 255;
+            b = 200 + (lifeRatio - 0.7) * 183; // 200 to 255
+        } else if (lifeRatio > 0.4) {
+            // Yellow to orange
+            r = 255;
+            g = 150 + (lifeRatio - 0.4) * 350; // 150 to 255
+            b = 0;
+        } else {
+            // Orange to red
+            r = 255;
+            g = lifeRatio * 375; // 0 to 150
+            b = 0;
+        }
+
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = `rgba(${r}, ${g}, 0, ${alpha})`;
         ctx.beginPath();
         ctx.arc(flame.x, flame.y, flame.size, 0, Math.PI * 2);
         ctx.fill();
+        ctx.shadowBlur = 0;
     });
 
     // Draw crash debris
@@ -1887,9 +1937,41 @@ function draw() {
     // Draw lander
     const lander = gameState.lander;
 
+    // Add speed lines when moving fast
+    const speed = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
+    if (speed > 3) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(0.5, (speed - 3) / 5); // Fade in based on speed
+        ctx.strokeStyle = '#0ff';
+        ctx.lineWidth = 1;
+
+        // Draw 5 speed lines behind the lander
+        for (let i = 0; i < 5; i++) {
+            const lineLength = 20 + speed * 3;
+            const offset = i * 8;
+            const angle = Math.atan2(lander.vy, lander.vx) + Math.PI; // Opposite direction
+            const startX = lander.x - Math.cos(angle) * offset;
+            const startY = lander.y - Math.sin(angle) * offset;
+            const endX = startX - Math.cos(angle) * lineLength;
+            const endY = startY - Math.sin(angle) * lineLength;
+
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
     ctx.save();
     ctx.translate(lander.x, lander.y);
     ctx.rotate(lander.angle); // Apply rotation
+
+    // Add glow effect when thrusting
+    if (gameState.keys.up && gameState.fuel > 0) {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = 'rgba(0, 255, 0, 0.5)';
+    }
 
     // Main body (triangular/rocket shape with more structure)
     ctx.fillStyle = '#0f0';
@@ -1903,6 +1985,9 @@ function draw() {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+
+    // Reset shadow after drawing main body
+    ctx.shadowBlur = 0;
 
     // Panel lines for structural detail
     ctx.strokeStyle = '#0a0';
@@ -2080,6 +2165,16 @@ function draw() {
     ctx.stroke();
 
     ctx.restore();
+
+    // Add subtle vignette effect for depth
+    const vignetteGradient = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, canvas.width * 0.2,
+        canvas.width / 2, canvas.height / 2, canvas.width * 0.7
+    );
+    vignetteGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vignetteGradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+    ctx.fillStyle = vignetteGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 // Game loop
