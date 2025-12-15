@@ -890,9 +890,18 @@ function update() {
         if (gameState.oxygen <= 0) {
             gameState.oxygen = 0;
             gameState.crashed = true;
-            gameState.gameOver = true;
+            stopThrustSound();
             playCrashSound();
-            showGameOver(false, 'OUT OF OXYGEN! Mission failed.');
+
+            // Create explosion at lander position
+            const lander = gameState.lander;
+            const speed = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
+            createExplosion(lander.x, lander.y, Math.max(speed, 3)); // Minimum speed for visible explosion
+
+            // Delay the game over message to show explosion
+            setTimeout(() => {
+                endGame(false, '💀 OUT OF OXYGEN! Mission failed.');
+            }, 1500);
             return;
         }
     }
