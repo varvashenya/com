@@ -283,6 +283,7 @@ let gameState = {
     rocks: [], // Surface boulders
     surfaceTexture: [], // Small rocks/dots for surface texture
     flames: [],
+    dustParticles: [], // Dust kicked up by landing/thrust
     previousOverallLightState: 'green',
     nextStationSpawn: 0, // Time until next station spawn
     lastFuelWarningBeep: 0, // Frame counter for fuel warning beeps
@@ -367,45 +368,6 @@ function addCraters() {
                 // Mark crater points for special rendering
                 gameState.terrain[idx].isCrater = true;
             }
-        }
-    }
-}
-
-// Generate rocks and boulders on the surface
-function generateRocks() {
-    const rockCount = 15 + Math.floor(Math.random() * 10);
-    
-    for (let i = 0; i < rockCount; i++) {
-        // Find a random point on the terrain
-        const terrainIdx = Math.floor(Math.random() * (gameState.terrain.length - 2));
-        const terrainPoint = gameState.terrain[terrainIdx];
-        
-        gameState.rocks.push({
-            x: terrainPoint.x,
-            y: terrainPoint.y,
-            size: 3 + Math.random() * 8,
-            shade: 0.3 + Math.random() * 0.4 // Random darkness for variety
-        });
-    }
-}
-
-// Generate surface texture (small rocks/dots) - called once to prevent flickering
-function generateSurfaceTexture() {
-    for (let i = 0; i < gameState.terrain.length - 2; i++) {
-        const point = gameState.terrain[i];
-        const nextPoint = gameState.terrain[i + 1];
-        
-        // Add random small rocks on surface
-        if (Math.random() > 0.7) {
-            const rockX = point.x + (nextPoint.x - point.x) * Math.random();
-            const rockY = point.y - Math.random() * 3;
-            const rockSize = Math.random() * 2 + 1;
-            
-            gameState.surfaceTexture.push({
-                x: rockX,
-                y: rockY,
-                size: rockSize
-            });
         }
     }
 }
@@ -934,6 +896,16 @@ function update() {
             return flame.life > 0;
         });
 
+        // Update dust particles so they continue to animate after crash
+        gameState.dustParticles = gameState.dustParticles.filter(dust => {
+            dust.x += dust.vx;
+            dust.y += dust.vy;
+            dust.vy += GRAVITY * 0.3; // Dust settles slowly
+            dust.vx *= 0.98; // Air resistance
+            dust.life--;
+            return dust.life > 0 && dust.y < canvas.height;
+        });
+
         return;
     }
 
@@ -956,6 +928,23 @@ function update() {
 
         // When landed, ONLY up button can take off (no left/right to avoid accidental takeoff on mobile)
         if (gameState.fuel > 0 && gameState.keys.up) {
+            // Generate dust cloud on takeoff (first frame only)
+            if (gameState.landed) {
+                const terrainHeight = getTerrainHeightAt(lander.x);
+                for (let i = 0; i < 25; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 1.5 + Math.random() * 2.5;
+                    gameState.dustParticles.push({
+                        x: lander.x + (Math.random() - 0.5) * lander.width * 2,
+                        y: terrainHeight,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed * 0.5, // Less upward, more outward
+                        life: 35 + Math.random() * 25,
+                        size: 1.5 + Math.random() * 2
+                    });
+                }
+            }
+
             gameState.landed = false;
             playThrustSound();
 
@@ -974,6 +963,16 @@ function update() {
             flame.vy += GRAVITY * 0.5;
             flame.life--;
             return flame.life > 0;
+        });
+
+        // Update dust particles even when landed so they continue to animate
+        gameState.dustParticles = gameState.dustParticles.filter(dust => {
+            dust.x += dust.vx;
+            dust.y += dust.vy;
+            dust.vy += GRAVITY * 0.3; // Dust settles slowly
+            dust.vx *= 0.98; // Air resistance
+            dust.life--;
+            return dust.life > 0 && dust.y < canvas.height;
         });
 
         // Don't update physics if landed
@@ -1026,6 +1025,35 @@ function update() {
         return flame.life > 0;
     });
 
+    // Update dust particles
+    gameState.dustParticles = gameState.dustParticles.filter(dust => {
+        dust.x += dust.vx;
+        dust.y += dust.vy;
+        dust.vy += GRAVITY * 0.3; // Dust settles slowly
+        dust.vx *= 0.98; // Air resistance (minimal on moon but adds realism)
+        dust.life--;
+        return dust.life > 0 && dust.y < canvas.height;
+    });
+
+    // Generate dust when thrusting close to surface
+    const terrainHeightForDust = getTerrainHeightAt(lander.x);
+    const distanceToSurface = terrainHeightForDust - (lander.y + lander.height / 2);
+    if (gameState.keys.up && gameState.fuel > 0 && distanceToSurface < 50 && !gameState.landed) {
+        // Create dust particles
+        for (let i = 0; i < 2; i++) {
+            const angle = lander.angle + Math.PI / 2 + (Math.random() - 0.5);
+            const speed = 1 + Math.random() * 2;
+            gameState.dustParticles.push({
+                x: lander.x + (Math.random() - 0.5) * lander.width,
+                y: lander.y + lander.height / 2,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 30 + Math.random() * 20,
+                size: 1 + Math.random() * 2
+            });
+        }
+    }
+
     // Screen wrapping for horizontal movement
     if (lander.x < -lander.width) lander.x = canvas.width;
     if (lander.x > canvas.width) lander.x = -lander.width;
@@ -1071,6 +1099,20 @@ function update() {
             gameState.landed = true;
             stopThrustSound();
             playLandingSound();
+
+            // Generate dust cloud on landing
+            for (let i = 0; i < 30; i++) {
+                const angle = Math.random() * Math.PI - Math.PI / 2; // Upward spray
+                const speed = 1 + Math.random() * 3;
+                gameState.dustParticles.push({
+                    x: lander.x + (Math.random() - 0.5) * lander.width * 2,
+                    y: terrainHeight,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 40 + Math.random() * 30,
+                    size: 1 + Math.random() * 2.5
+                });
+            }
             // Don't end game, allow taking off again
         } else {
             // Crash!
@@ -1258,10 +1300,10 @@ function drawCockpitInstruments() {
 
     currentX += 100;
 
-    // === WARNING LIGHTS (Small circles) ===
-    const lightRadius = 5;
+    // === WARNING LIGHTS (Improved readability) ===
+    const lightRadius = 7;  // Increased from 5 to 7
     const lightY = panelY + 15;
-    const lightSpacing = 25;
+    const lightSpacing = 32;  // Increased from 25 to 32 for better spacing
 
     // Vertical Speed
     let vSpeedState = 'green';
@@ -1318,31 +1360,31 @@ function drawCockpitInstruments() {
 
     // === STATUS INDICATORS ===
     const statusY = panelY + 15;
-    const statusWidth = 40;
-    const statusHeight = 12;
-    const statusSpacing = 45;
+    const statusWidth = 45;  // Increased from 40 to 45
+    const statusHeight = 14;  // Increased from 12 to 14
+    const statusSpacing = 50;  // Increased from 45 to 50
 
-    // Landed
-    if (gameState.landed) {
-        drawCompactStatus(currentX, statusY, statusWidth, statusHeight, true, 'LAND', '#00f');
-    }
+    // Landed - always visible, bright when landed, dim when not
+    drawCompactStatus(currentX, statusY, statusWidth, statusHeight, gameState.landed, 'LAND', '#00f', !gameState.landed);
 
-    // Low Fuel (blinking)
+    // Low Fuel - always visible, blinking when low, dim when normal
     if (gameState.fuel < 20) {
         const blink = Math.floor(Date.now() / 300) % 2 === 0;
-        drawCompactStatus(currentX + statusSpacing, statusY, statusWidth, statusHeight, blink, 'FUEL!', '#f00');
+        drawCompactStatus(currentX + statusSpacing, statusY, statusWidth, statusHeight, blink, 'FUEL!', '#f00', false);
+    } else {
+        drawCompactStatus(currentX + statusSpacing, statusY, statusWidth, statusHeight, false, 'FUEL!', '#f00', true);
     }
 
-    // Low O2 (blinking)
+    // Low O2 - always visible, blinking when low, dim when normal
     if (gameState.oxygen < 20) {
         const blink = Math.floor(Date.now() / 300) % 2 === 0;
-        drawCompactStatus(currentX + statusSpacing * 2, statusY, statusWidth, statusHeight, blink, 'O2!', '#f00');
+        drawCompactStatus(currentX + statusSpacing * 2, statusY, statusWidth, statusHeight, blink, 'O2!', '#f00', false);
+    } else {
+        drawCompactStatus(currentX + statusSpacing * 2, statusY, statusWidth, statusHeight, false, 'O2!', '#f00', true);
     }
 
-    // Thrust
-    if (gameState.keys.up) {
-        drawCompactStatus(currentX + statusSpacing * 3, statusY, statusWidth, statusHeight, true, 'THR', '#ff0');
-    }
+    // Thrust - always visible, bright when thrusting, dim when not
+    drawCompactStatus(currentX + statusSpacing * 3, statusY, statusWidth, statusHeight, gameState.keys.up, 'THR', '#ff0', !gameState.keys.up);
 }
 
 // Draw compact warning light for horizontal panel
@@ -1353,34 +1395,65 @@ function drawCompactLight(x, y, radius, state, label) {
     else if (state === 'yellow') color = '#ff0';
     else color = '#f00';
 
-    // Light with glow
+    // Draw dark background circle for contrast
+    ctx.fillStyle = 'rgba(20, 20, 20, 0.7)';
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Light with stronger glow
     ctx.fillStyle = color;
-    ctx.shadowBlur = 5;
+    ctx.shadowBlur = 10;  // Increased from 5 to 10
     ctx.shadowColor = color;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Label
-    ctx.fillStyle = '#0a0';
-    ctx.font = '7px monospace';
+    // Inner highlight for 3D effect
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.beginPath();
+    ctx.arc(x - radius * 0.3, y - radius * 0.3, radius * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Label - larger and bolder
+    ctx.fillStyle = '#0f0';
+    ctx.font = 'bold 9px monospace';  // Increased from 7px to 9px and made bold
     ctx.textAlign = 'center';
-    ctx.fillText(label, x, y - radius - 2);
+    ctx.fillText(label, x, y - radius - 3);
 }
 
 // Draw compact status indicator
-function drawCompactStatus(x, y, width, height, active, label, color) {
+function drawCompactStatus(x, y, width, height, active, label, color, dimmed = false) {
+    // If dimmed (inactive), show with reduced opacity
+    if (dimmed) {
+        ctx.fillStyle = 'rgba(60, 60, 60, 0.5)';  // Slightly more visible
+        ctx.fillRect(x - width/2, y - height/2, width, height);
+
+        ctx.strokeStyle = 'rgba(80, 80, 80, 0.4)';  // Slightly more visible border
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x - width/2, y - height/2, width, height);
+
+        ctx.fillStyle = 'rgba(120, 120, 120, 0.5)';  // Brighter text
+        ctx.font = 'bold 9px monospace';  // Increased from 8px to 9px
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, x, y);
+        return;
+    }
+
+    // If not active and not dimmed, don't draw at all
     if (!active) return;
 
+    // Active state - bright with glow
     ctx.fillStyle = color;
-    ctx.shadowBlur = 6;
+    ctx.shadowBlur = 8;  // Increased from 6 to 8 for more glow
     ctx.shadowColor = color;
     ctx.fillRect(x - width/2, y - height/2, width, height);
     ctx.shadowBlur = 0;
 
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 8px monospace';
+    ctx.font = 'bold 9px monospace';  // Increased from 8px to 9px
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, x, y);
@@ -1605,95 +1678,45 @@ function draw() {
         ctx.restore();
     });
 
-    // Draw moon surface with realistic texturing
-    // Base surface fill with gradient for depth
-    const surfaceGradient = ctx.createLinearGradient(0, canvas.height - 150, 0, canvas.height);
-    surfaceGradient.addColorStop(0, '#555');
-    surfaceGradient.addColorStop(0.6, '#444');
-    surfaceGradient.addColorStop(1, '#333');
-    ctx.fillStyle = surfaceGradient;
+    // === DRAW MOON SURFACE - MINIMAL CLEAN VERSION ===
+
+    // 1. Fill the terrain area with solid color
+    ctx.fillStyle = '#444';
     ctx.beginPath();
     ctx.moveTo(gameState.terrain[0].x, gameState.terrain[0].y);
 
-    gameState.terrain.forEach(point => {
-        ctx.lineTo(point.x, point.y);
-    });
+    for (let i = 0; i < gameState.terrain.length; i++) {
+        ctx.lineTo(gameState.terrain[i].x, gameState.terrain[i].y);
+    }
 
     ctx.closePath();
     ctx.fill();
 
-    // Add texture with small rocks/dots (pre-generated to avoid flickering)
-    ctx.fillStyle = '#555';
-    gameState.surfaceTexture.forEach(rock => {
+    // 2. Add dust texture (subtle noise)
+    ctx.fillStyle = 'rgba(100, 100, 100, 0.15)';
+    for (let i = 0; i < 150; i++) {
+        const x = Math.random() * canvas.width;
+        const y = canvas.height - 150 + Math.random() * 150;
+        const size = Math.random() * 1.5;
         ctx.beginPath();
-        ctx.arc(rock.x, rock.y, rock.size, 0, Math.PI * 2);
+        ctx.arc(x, y, size, 0, Math.PI * 2);
         ctx.fill();
-    });
-
-    // Draw darker areas in craters
-    ctx.fillStyle = 'rgba(40, 40, 40, 0.5)';
-    for (let i = 0; i < gameState.terrain.length - 2; i++) {
-        const point = gameState.terrain[i];
-        if (point.isCrater) {
-            ctx.beginPath();
-            ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
-            ctx.fill();
-        }
     }
 
-    // Draw surface outline with highlights and shadows
-    ctx.strokeStyle = '#888';
+    // 3. Draw surface outline
+    ctx.strokeStyle = '#666';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(gameState.terrain[0].x, gameState.terrain[0].y);
 
     for (let i = 1; i < gameState.terrain.length - 2; i++) {
-        const point = gameState.terrain[i];
-        const prevPoint = gameState.terrain[i - 1];
-
-        // Calculate slope for lighting effect
-        const slope = point.y - prevPoint.y;
-
-        // Brighter on upward slopes (facing "sun"), darker on downward slopes
-        if (slope < 0) {
-            ctx.strokeStyle = '#999'; // Lighter
-        } else if (slope > 2) {
-            ctx.strokeStyle = '#666'; // Darker
-        } else {
-            ctx.strokeStyle = '#777'; // Medium
-        }
-
-        ctx.lineTo(point.x, point.y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(point.x, point.y);
+        ctx.lineTo(gameState.terrain[i].x, gameState.terrain[i].y);
     }
-
-    // Finish the outline
-    ctx.strokeStyle = '#777';
-    ctx.lineTo(gameState.terrain[gameState.terrain.length - 3].x, gameState.terrain[gameState.terrain.length - 3].y);
     ctx.stroke();
 
-    // Draw surface rocks and boulders
-    gameState.rocks.forEach(rock => {
-        // Rock body
-        ctx.fillStyle = `rgba(${100 * rock.shade}, ${100 * rock.shade}, ${100 * rock.shade}, 1)`;
-        ctx.beginPath();
-        ctx.arc(rock.x, rock.y - rock.size / 2, rock.size, 0, Math.PI * 2);
-        ctx.fill();
+    // Boulders removed - clean surface with just dust texture
 
-        // Highlight on top for 3D effect
-        ctx.fillStyle = `rgba(${150 * rock.shade}, ${150 * rock.shade}, ${150 * rock.shade}, 0.6)`;
-        ctx.beginPath();
-        ctx.arc(rock.x - rock.size * 0.2, rock.y - rock.size / 2 - rock.size * 0.2, rock.size * 0.3, 0, Math.PI * 2);
-        ctx.fill();
 
-        // Shadow at bottom
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.beginPath();
-        ctx.ellipse(rock.x, rock.y, rock.size * 0.8, rock.size * 0.3, 0, 0, Math.PI * 2);
-        ctx.fill();
-    });
 
     // Draw fuel station (Modern Sci-Fi Charging Pad with Holographic Effects)
     if (gameState.fuelStation) {
@@ -1895,6 +1918,25 @@ function draw() {
         ctx.arc(flame.x, flame.y, flame.size, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
+    });
+
+    // Draw dust particles with enhanced visibility
+    gameState.dustParticles.forEach(dust => {
+        const alpha = Math.min(1, dust.life / 50);
+
+        // Main dust particle
+        ctx.fillStyle = `rgba(180, 180, 180, ${alpha * 0.7})`;
+        ctx.beginPath();
+        ctx.arc(dust.x, dust.y, dust.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Slight glow for visibility
+        if (dust.life > 30) {
+            ctx.fillStyle = `rgba(200, 200, 200, ${alpha * 0.3})`;
+            ctx.beginPath();
+            ctx.arc(dust.x, dust.y, dust.size * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
     });
 
     // Draw crash debris
@@ -2188,8 +2230,6 @@ function gameLoop() {
 initStars();
 generateTerrain();
 createFuelStation();
-generateRocks();
-generateSurfaceTexture();
 positionLanderOnTerrain();
 gameState.nextStationSpawn = 300 + Math.random() * 600; // First station in 5-15 seconds
 gameLoop();
