@@ -304,7 +304,8 @@ const stack = [
       2022: 20,
       2023: 10,
       2024: 15,
-      2025: 30
+      2025: 30,
+      2026: 35
     },
     borderColor: 'darkgreen',
     fill: false,
@@ -315,7 +316,8 @@ const stack = [
     'years': {
       2023: 15,
       2024: 35,
-      2025: 50
+      2025: 50,
+      2026: 55
     },
     borderColor: 'purple',
     fill: false,
@@ -326,7 +328,8 @@ const stack = [
     'years': {
       2023: 10,
       2024: 23,
-      2025: 33
+      2025: 33,
+      2026: 38
     },
     borderColor: 'indigo',
     fill: false,
@@ -350,7 +353,8 @@ const stack = [
       2022: 60,
       2023: 60,
       2024: 50,
-      2025: 15
+      2025: 15,
+      2026: 10
     },
     borderColor: 'RebeccaPurple',
     fill: false,
@@ -379,7 +383,8 @@ const stack = [
       2022: 2,
       2023: 2,
       2024: 2,
-      2025: 0
+      2025: 1,
+      2026: 1
     },
     borderColor: 'Teal',
     fill: false,
@@ -404,7 +409,8 @@ const stack = [
       2022: 3,
       2023: 15,
       2024: 15,
-      2025: 25
+      2025: 25,
+      2026: 30
     },
     borderColor: 'navy',
     fill: false,
@@ -433,7 +439,8 @@ const stack = [
       2022: 63,
       2023: 55,
       2024: 70,
-      2025: 75
+      2025: 75,
+      2026: 78
     },
     borderColor: 'blue',
     fill: false,
@@ -463,7 +470,8 @@ const stack = [
       2022: 5,
       2023: 5,
       2024: 5,
-      2025: 5
+      2025: 5,
+      2026: 5
     },
     borderColor: 'orange',
     fill: false,
@@ -558,7 +566,8 @@ const stack = [
       2022: 6,
       2023: 6,
       2024: 5,
-      2025: 5
+      2025: 5,
+      2026: 2
     },
     borderColor: 'Crimson',
     fill: false,

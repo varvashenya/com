@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>River - Arcade Game</title>
+    <link rel="stylesheet" href="river.css">
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="ui">
+            <div class="ui-item">Score: <span id="score">0</span></div>
+            <div class="ui-item">Lives: <span id="lives">3</span></div>
+            <div class="ui-item">
+                Fuel:
+                <div class="bar-container">
+                    <div id="fuelBar" class="bar"></div>
+                </div>
+            </div>
+            <div class="ui-item">Ammo: <span id="ammo">50</span></div>
+        </div>
+
+        <div id="controls">
+            <button id="pauseBtn">Pause</button>
+        </div>
+
+        <button id="shootBtn" class="mobile-only">FIRE</button>
+
+        <div id="gameOverScreen" class="screen">
+            <h1>GAME OVER</h1>
+            <p id="gameOverReason"></p>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button onclick="restartGame()" class="restart-btn">Restart</button>
+        </div>
+
+        <div id="victoryScreen" class="screen">
+            <h1>VICTORY!</h1>
+            <p>Congratulations! You've reached the goal!</p>
+            <p>Score: <span id="victoryScore">0</span></p>
+            <button onclick="restartGame()" class="restart-btn">Play Again</button>
+        </div>
+    </div>
+
+    <script src="river.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,199 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+    font-family: 'Courier New', monospace;
+}
+
+#gameContainer {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#gameCanvas {
+    display: block;
+    background: linear-gradient(to bottom, #1a1a2e 0%, #0f3460 100%);
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: 0 0 30px rgba(0, 243, 255, 0.3);
+}
+
+#ui {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: #00f3ff;
+    font-family: 'Courier New', monospace;
+    font-size: 18px;
+    text-shadow: 0 0 10px rgba(0, 243, 255, 0.8);
+    background: rgba(0, 0, 0, 0.5);
+    padding: 15px;
+    border-radius: 10px;
+    border: 2px solid #00f3ff;
+}
+
+.ui-item {
+    margin-bottom: 10px;
+}
+
+.bar-container {
+    display: inline-block;
+    width: 150px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #00ff88;
+    border-radius: 10px;
+    overflow: hidden;
+    vertical-align: middle;
+}
+
+.bar {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(to right, #00ff88, #00aa66);
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
+}
+
+#controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+#pauseBtn {
+    background: rgba(0, 0, 0, 0.8);
+    color: #00f3ff;
+    border: 2px solid #00f3ff;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+    border-radius: 5px;
+    text-shadow: 0 0 10px rgba(0, 243, 255, 0.8);
+    transition: all 0.3s ease;
+}
+
+#pauseBtn:hover {
+    background: rgba(0, 243, 255, 0.2);
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.6);
+}
+
+#shootBtn {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    width: 100px;
+    height: 100px;
+    background: rgba(255, 51, 102, 0.8);
+    color: white;
+    border: 3px solid #ff3366;
+    border-radius: 50%;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(255, 51, 102, 0.8);
+    transition: all 0.1s ease;
+    display: none;
+}
+
+#shootBtn:active {
+    transform: scale(0.95);
+    box-shadow: 0 0 30px rgba(255, 51, 102, 1);
+}
+
+.mobile-only {
+    display: none;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+    .mobile-only {
+        display: block !important;
+    }
+}
+
+.screen {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.95);
+    color: #00f3ff;
+    padding: 40px;
+    text-align: center;
+    border-radius: 15px;
+    border: 3px solid #00f3ff;
+    box-shadow: 0 0 40px rgba(0, 243, 255, 0.6);
+    min-width: 300px;
+    z-index: 1000;
+}
+
+.screen h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+    text-shadow: 0 0 20px rgba(0, 243, 255, 1);
+    animation: pulse 1s infinite;
+}
+
+.screen p {
+    font-size: 20px;
+    margin: 15px 0;
+}
+
+.restart-btn {
+    background: rgba(0, 243, 255, 0.2);
+    color: #00f3ff;
+    border: 2px solid #00f3ff;
+    padding: 15px 30px;
+    font-size: 20px;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+    border-radius: 10px;
+    margin-top: 20px;
+    transition: all 0.3s ease;
+    text-shadow: 0 0 10px rgba(0, 243, 255, 0.8);
+}
+
+.restart-btn:hover {
+    background: rgba(0, 243, 255, 0.4);
+    box-shadow: 0 0 30px rgba(0, 243, 255, 0.8);
+    transform: scale(1.05);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+#victoryScreen h1 {
+    color: #ffff00;
+    text-shadow: 0 0 20px rgba(255, 255, 0, 1);
+}
+
+#victoryScreen {
+    border-color: #ffff00;
+    box-shadow: 0 0 40px rgba(255, 255, 0, 0.6);
+}
+
+#gameOverScreen h1 {
+    color: #ff3366;
+    text-shadow: 0 0 20px rgba(255, 51, 102, 1);
+}
+
+#gameOverScreen {
+    border-color: #ff3366;
+    box-shadow: 0 0 40px rgba(255, 51, 102, 0.6);
+}
+
