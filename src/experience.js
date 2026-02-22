@@ -1348,4 +1348,13 @@ class LineChart {
   chart = new LineChart(canvas, data.labels, data.datasets);
   createLegend(data.datasets, updateChart, redrawChart);
   isInitialized = true;
+
+  // Fix for initial rendering - ensure proper sizing after layout is complete
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (chart) {
+        chart.resize();
+      }
+    });
+  });
 })();
